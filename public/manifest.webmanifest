@@ -1,0 +1,9 @@
+{
+  "name": "CashTracker",
+  "short_name": "CashTracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff7f9",
+  "theme_color": "#ff8fab",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
