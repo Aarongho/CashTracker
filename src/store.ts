@@ -26,6 +26,7 @@ export type Action =
   | { type: "removeTx"; id: string }
   | { type: "settings"; patch: Partial<Settings> }
   | { type: "tour"; done: boolean }
+  | { type: "purgeEmailData" }
   | { type: "reset" };
 
 export function reducer(state: AppState, a: Action): AppState {
@@ -62,8 +63,23 @@ export function reducer(state: AppState, a: Action): AppState {
         }),
       };
     }
-    case "removeTx":
-      return { ...state, transactions: state.transactions.filter((t) => t.id !== a.id) };
+    case "removeTx": {
+      const gone = state.transactions.find((t) => t.id === a.id);
+      return {
+        ...state,
+        transactions: state.transactions.filter((t) => t.id !== a.id),
+        ignoredMessageIds: gone?.messageId ? [...(state.ignoredMessageIds ?? []), gone.messageId] : state.ignoredMessageIds,
+      };
+    }
+    case "purgeEmailData":
+      // Email-derived data only exists while Gmail is connected. Accounts, their
+      // starting balances, manual transactions and category rules stay.
+      return {
+        ...state,
+        transactions: state.transactions.filter((t) => !t.messageId),
+        seenMessageIds: [],
+        lastSyncAt: null,
+      };
     case "settings":
       return { ...state, settings: { ...state.settings, ...a.patch } };
     case "tour":

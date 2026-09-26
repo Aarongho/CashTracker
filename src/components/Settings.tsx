@@ -75,6 +75,7 @@ export function Settings({ state, dispatch, sync, onSetupGmail, onTutorial }: { 
         <h3>📬 Gmail</h3>
         <p className="muted">
           {sync.mode === "gmail" ? <>Tersambung{sync.account ? <> sebagai <b className="ink">{sync.account}</b></> : ""} (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun.</> : "Belum tersambung."}
+          {sync.mode === "gmail" && <><br /><small>Kalau diputus, transaksi dari email dihapus dari HP ini dan dibaca ulang saat kamu login lagi. Akun & saldo awal tetap tersimpan.</small></>}
         </p>
         <label className="field">
           <span>Cek email tiap</span>
@@ -84,7 +85,9 @@ export function Settings({ state, dispatch, sync, onSetupGmail, onTutorial }: { 
         </label>
         <div className="row">
           {sync.mode !== "gmail" && <button className="btn" onClick={onSetupGmail}>Sambungkan Gmail</button>}
-          {sync.mode !== null && <button className="btn ghost" onClick={sync.stop}>Putuskan</button>}
+          {sync.mode !== null && (
+            <ConfirmButton className="btn secondary danger-text" label="Putuskan" confirmLabel="Yakin? Tap lagi" onConfirm={sync.stop} />
+          )}
         </div>
       </section>
 

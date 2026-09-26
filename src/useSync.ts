@@ -62,17 +62,18 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     [dispatch, onNew],
   );
 
-  const syncGmail = useCallback(async () => {
+  /** `fresh` re-reads everything, e.g. right after switching to another Gmail account. */
+  const runSync = useCallback(async (fresh: boolean) => {
     if (busy.current) return;
     busy.current = true;
     setStatus("syncing");
     try {
       const s = stateRef.current;
       const earliestBank = Math.min(...s.banks.map((b) => Date.parse(b.setAt)), Date.now());
-      const after = s.lastSyncAt ? Date.parse(s.lastSyncAt) - 2 * DAY : earliestBank - HISTORY_DAYS * DAY;
+      const after = s.lastSyncAt && !fresh ? Date.parse(s.lastSyncAt) - 2 * DAY : earliestBank - HISTORY_DAYS * DAY;
       // Only mail from the banks / e-wallets the user added.
       const q = gmailQueryForAccounts(s.banks, Math.floor(after / 1000));
-      const emails = q ? await fetchNewMessages(q, new Set(s.seenMessageIds)) : [];
+      const emails = q ? await fetchNewMessages(q, new Set(fresh ? [] : s.seenMessageIds)) : [];
       ingest(emails);
       setError(null);
       setNeedsReconnect(false);
@@ -86,23 +87,28 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     }
   }, [ingest]);
 
+  const syncGmail = useCallback(() => runSync(false), [runSync]);
+
   const connectGmail = useCallback(async (): Promise<boolean> => {
     try {
       await requestToken(true);
       setMode("gmail");
       setNeedsReconnect(false);
       setError(null);
-      fetchProfileEmail()
-        .then((email) => {
-          setAccount(email);
-          try {
-            localStorage.setItem(ACCOUNT_KEY, email);
-          } catch {
-            /* ignore */
-          }
-        })
-        .catch(() => {});
-      await syncGmail();
+      // Email data belongs to one Gmail account: switching accounts starts clean.
+      const previous = readAccount();
+      const email = await fetchProfileEmail().catch(() => null);
+      const switched = !!email && !!previous && email !== previous;
+      if (switched) dispatch({ type: "purgeEmailData" });
+      if (email) {
+        setAccount(email);
+        try {
+          localStorage.setItem(ACCOUNT_KEY, email);
+        } catch {
+          /* ignore */
+        }
+      }
+      await runSync(switched);
     } catch (e) {
       setError((e as Error).message);
       setStatus("error");
@@ -127,7 +133,7 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     }
     setStatus("idle");
     setError(null);
-  }, [mode]);
+  }, [mode, dispatch]);
 
   // Live polling while Gmail is connected. The token lives in memory only, so after a
   // reload we need one click to reconnect (browsers block silent popups).

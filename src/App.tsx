@@ -52,6 +52,7 @@ export default function App() {
 
   useEffect(() => preloadGis(), []);
 
+
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 5000);
     return () => clearInterval(id);
@@ -84,6 +85,11 @@ export default function App() {
   );
 
   const sync = useSync(state, dispatch, onNew);
+  // Transactions read from email are only shown while Gmail is connected.
+  const hasEmailData = state.transactions.some((t) => t.messageId);
+  useEffect(() => {
+    if (sync.mode !== "gmail" && hasEmailData) dispatch({ type: "purgeEmailData" });
+  }, [sync.mode, hasEmailData, dispatch]);
 
   if (!state.onboarded) {
     return (

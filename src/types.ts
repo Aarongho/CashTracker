@@ -93,6 +93,8 @@ export interface AppState {
   banks: Bank[];
   transactions: Transaction[];
   seenMessageIds: string[];
+  /** Emails the user marked "Bukan transaksi"; kept across logouts so they never come back. */
+  ignoredMessageIds?: string[];
   lastSyncAt: string | null;
   settings: Settings;
 }

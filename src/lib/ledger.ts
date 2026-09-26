@@ -31,7 +31,7 @@ export interface MergeResult {
 }
 
 export function mergeParsed(state: AppState, parsed: ParsedTx[]): MergeResult {
-  const seen = new Set(state.seenMessageIds);
+  const seen = new Set([...state.seenMessageIds, ...(state.ignoredMessageIds ?? [])]);
   const txs = [...state.transactions];
   const added: Transaction[] = [];
 
@@ -74,7 +74,8 @@ export function mergeParsed(state: AppState, parsed: ParsedTx[]): MergeResult {
   }
 
   txs.sort((a, b) => b.date.localeCompare(a.date));
-  return { state: { ...state, transactions: txs, seenMessageIds: [...seen] }, added };
+  const ignored = new Set(state.ignoredMessageIds ?? []);
+  return { state: { ...state, transactions: txs, seenMessageIds: [...seen].filter((id) => !ignored.has(id)) }, added };
 }
 
 function guessKind(source: string): "bank" | "merchant" {
