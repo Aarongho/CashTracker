@@ -62,6 +62,10 @@ export interface Transaction {
   /** Merged-away duplicates (e.g. an Apple receipt matched to a BCA notification). */
   mergedFrom?: string[];
   note?: string;
+  /** For transfers: who received the money. */
+  recipient?: string;
+  /** Subject of the email it came from, so the user can see why it was recorded. */
+  subject?: string;
 }
 
 export interface EmailMessage {

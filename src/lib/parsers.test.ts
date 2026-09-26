@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAmount, parseEmail } from "./parsers";
+import { extractAmount, extractRecipient, parseEmail } from "./parsers";
 import { demoInbox } from "./demo";
 import { categorize } from "./categorize";
 
@@ -49,5 +49,66 @@ describe("parseEmail", () => {
 
   it("parses every demo email", () => {
     for (const m of demoInbox()) expect(parseEmail(m), m.id).not.toBeNull();
+  });
+});
+
+describe("promo emails are not transactions", () => {
+  const promos: [string, string, string][] = [
+    [
+      "BCA <halo@bca.co.id>",
+      "RUNinvestasi 2026: From Miles to Millions",
+      "Ayo ikut RUNinvestasi 2026! Lari sambil belajar investasi.\nBiaya pendaftaran mulai Rp250 ribu.\nTotal hadiah hingga Rp 100 juta.\nDaftar sekarang di aplikasi myBCA. Pembayaran pendaftaran bisa lewat BCA mobile.\nSyarat & ketentuan berlaku.\nBerhenti berlangganan",
+    ],
+    [
+      "OVO <no-reply@ovo.id>",
+      "Mau belanja lebih hemat?",
+      "Pakai OVO buat bayar belanjaan dan dapat cashback Rp10 rb!\nTop up saldo OVO sekarang. Transaksi minimal Rp50.000.\nPromo berlaku s.d. 30 September. S&K berlaku.\nUnsubscribe",
+    ],
+    [
+      "Tokopedia <promo@tokopedia.com>",
+      "Flash Sale 10.10 mulai jam 10 pagi!",
+      "Diskon hingga 90% + gratis ongkir. Checkout order kamu sekarang, harga mulai Rp 1.000.",
+    ],
+    [
+      "Grab <no-reply@grab.com>",
+      "Ada voucher GrabFood buat kamu 🍜",
+      "Pakai kode HEMAT untuk potongan Rp15.000 di pesanan berikutnya. Berlaku hingga Minggu.",
+    ],
+  ];
+  it.each(promos)("%s: %s", (from, subject, body) => {
+    expect(parseEmail(msg(from, subject, body))).toBeNull();
+  });
+
+  it("ignores amounts written with ribu/rb/juta", () => {
+    expect(extractAmount("Cashback Rp10 rb, hadiah Rp 5 juta")).toBeNull();
+  });
+
+  it("ignores tiny amounts that aren't real payments", () => {
+    expect(parseEmail(msg("BCA <bca@bca.co.id>", "Notifikasi Transaksi BCA", "Nominal : Rp 10"))).toBeNull();
+  });
+
+  it("still reads real OVO and BCA transactions", () => {
+    expect(parseEmail(msg("OVO <no-reply@ovo.id>", "Pembayaran Berhasil", "Kamu telah membayar di KOPI KENANGAN\nTotal Pembayaran Rp 28.000\nID Transaksi: 123"))?.amount).toBe(28_000);
+    expect(parseEmail(msg("BCA <bca@bca.co.id>", "Internet Transaction Journal", "Transaction Type : Payment\nCompany/Product : TELKOMSEL\nTotal Payment : IDR 100,000.00\nReference No. : 123"))?.amount).toBe(100_000);
+  });
+});
+
+describe("transfer recipients", () => {
+  it.each([
+    ["Nama Penerima : BUDI SANTOSO", "BUDI SANTOSO"],
+    ["Rekening Tujuan : 0123456789 - SITI AMINAH", "SITI AMINAH"],
+    ["Penerima: Andi Wijaya (BNI)", "Andi Wijaya"],
+    ["Beneficiary Name: JOHN DOE", "JOHN DOE"],
+  ])("%s", (line, name) => expect(extractRecipient(line)).toBe(name));
+
+  it("names the transfer after the recipient", () => {
+    const p = parseEmail(msg("BCA <bca@bca.co.id>", "Transfer Berhasil", "Jenis Transaksi : Transfer BI-FAST\nNama Penerima : RINA KARTIKA\nBank Tujuan : Mandiri\nNominal : Rp 150.000,00"))!;
+    expect(p).toMatchObject({ amount: 150_000, recipient: "RINA KARTIKA", merchant: "Transfer ke RINA KARTIKA" });
+    expect(categorize(p.merchant, p.hint, p.body, noOverrides)).toBe("Transfer");
+  });
+
+  it("names incoming money after the sender", () => {
+    const p = parseEmail(msg("BCA <bca@bca.co.id>", "Dana Masuk ke Rekening Anda", "Dari : PT MAJU JAYA\nNominal : Rp 8.500.000,00"))!;
+    expect(p.merchant).toBe("Dari PT MAJU JAYA");
   });
 });

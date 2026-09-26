@@ -503,6 +503,12 @@ a { color: var(--blue); font-weight: 800; text-decoration: none; }
 @keyframes float-up { from { transform: translateY(20px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(-40px); opacity: 0; } }
 @keyframes coin-drop { 0% { transform: translateY(-30px); opacity: 0; } 20% { opacity: 1; } 75% { transform: translateY(46px); opacity: 1; } 100% { transform: translateY(50px); opacity: 0; } }
 
+.email-origin { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 2px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+.email-origin small { color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; }
+.email-origin b { color: var(--ink-strong); overflow-wrap: anywhere; }
+.email-origin span { color: var(--muted); }
+.btn.secondary.danger-text { color: var(--red); }
+
 /* ---------- Brand logos ---------- */
 .brand-badge {
   --c: var(--blue);

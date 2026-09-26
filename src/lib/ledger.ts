@@ -58,6 +58,8 @@ export function mergeParsed(state: AppState, parsed: ParsedTx[]): MergeResult {
       category: categorize(p.merchant, p.hint, p.body, state.settings),
       bankId: bankForSource(state, p),
       source: p.source,
+      recipient: p.recipient,
+      subject: p.subject,
     };
     const twin = findTwin(txs, tx, p.sourceKind);
     if (twin) {

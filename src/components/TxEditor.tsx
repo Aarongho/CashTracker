@@ -44,6 +44,14 @@ export function TxEditor({
 
   return (
     <Sheet title={isNew ? "Tambah transaksi" : "Edit transaksi"} onClose={onClose}>
+        {tx?.messageId && (
+          <div className="email-origin">
+            <small>Dari email {tx.mergedFrom?.length ? `${tx.mergedFrom[0]} + ${tx.source}` : tx.source}</small>
+            {tx.subject && <b>“{tx.subject}”</b>}
+            {tx.recipient && <span>Penerima: <b>{tx.recipient}</b></span>}
+          </div>
+        )}
+
         <Segmented<Direction>
           value={draft.direction}
           onChange={(d) => set("direction", d)}
@@ -82,7 +90,11 @@ export function TxEditor({
         )}
 
         <div className="row">
-          {!isNew && onDelete && <button className="btn danger" onClick={() => onDelete(draft.id)}>Hapus</button>}
+          {!isNew && onDelete && (
+            <button className="btn secondary danger-text" onClick={() => onDelete(draft.id)}>
+              {tx?.messageId ? "Bukan transaksi" : "Hapus"}
+            </button>
+          )}
           <button className="btn wide" disabled={!draft.amount || !draft.merchant.trim()} onClick={() => onSave(draft, remember)}>Simpan</button>
         </div>
     </Sheet>

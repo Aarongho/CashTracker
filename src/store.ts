@@ -80,7 +80,11 @@ function load(): AppState {
     return {
       ...initialState,
       ...s,
-      transactions: (s.transactions ?? []).filter((t) => !isDemo(t.messageId)),
+      // Also drop auto-detected entries an older parser misread from promo emails
+      // ("Rp10 rb" read as Rp10). Their message IDs stay in seenMessageIds, so they don't return.
+      transactions: (s.transactions ?? []).filter(
+        (t) => !isDemo(t.messageId) && !(t.messageId && !t.manualCategory && t.amount < 500),
+      ),
       seenMessageIds: (s.seenMessageIds ?? []).filter((id) => !isDemo(id)),
       settings: { ...initialState.settings, ...s.settings },
     };

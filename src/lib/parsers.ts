@@ -66,6 +66,9 @@ export function gmailQuery(afterEpochSec: number): string {
 
 export interface ParsedTx {
   messageId: string;
+  /** For transfers: the person/account the money went to. */
+  recipient?: string;
+  subject?: string;
   date: string;
   amount: number;
   direction: Direction;
@@ -77,17 +80,30 @@ export interface ParsedTx {
 }
 
 const SKIP = /\b(otp|kode verifikasi|verification code|one[- ]time|e-?statement|lembar tagihan|billing statement|password|kata sandi)\b/i;
-const PROMO = /\b(promo|diskon|discount|voucher|cashback hingga|flash sale|newsletter|hemat hingga|special offer)\b/i;
-const TX_WORDS = /(receipt|struk|transaksi|transaction|invoice|pembayaran|payment|tagihan|pembelian|purchase|pesanan|order|top ?up|transfer|charged|berhasil|successful|subscription|langganan|debit|kredit|credit)/i;
 const INCOMING = /(dana masuk|uang masuk|transfer masuk|incoming transfer|you('ve)? received|telah menerima|diterima dari|refund|pengembalian dana|cashback diterima|kredit ke rekening|credited)/i;
 
-const AMOUNT_RE = /(?:IDR|Rp\.?)\s?(\d{1,3}(?:[., \u00a0]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)/gi;
+/** Subjects that on their own say "this is a receipt / transaction notice". */
+const STRONG_SUBJECT = /(receipt|struk|bukti (bayar|pembayaran|transfer|transaksi)|invoice|faktur|notifikasi transaksi|transaction (alert|notification|journal)|transaksi (berhasil|sukses|kartu)|pembayaran (berhasil|sukses|diterima)|payment (successful|received|confirmation)|top ?up berhasil|transfer (berhasil|sukses|masuk)|dana masuk|uang masuk|tagihan|your order|pesanan (kamu|anda)|purchase confirmation|terima kasih atas pembelian|thank you for your .*purchase)/i;
+/** Weaker transaction words; need structured fields in the body too. */
+const TX_SUBJECT = /(transaksi|transaction|pembayaran|payment|pembelian|purchase|pesanan|order|top ?up|transfer|langganan|subscription|berhasil|successful)/i;
+/** Marketing language. */
+const PROMO = /(promo|diskon|discount|voucher|kupon|coupon|cashback|hemat|gratis|free ongkir|hadiah|undian|giveaway|event|webinar|seminar|festival|daftar sekarang|ikuti|jangan lewatkan|flash sale|spesial|special offer|penawaran|newsletter|mulai dari|s\.d\.|hingga \d|up to|syarat (dan|&) ketentuan|s&k|t&c|\b(yuk|ayo)\b)/i;
+const UNSUBSCRIBE = /(unsubscribe|berhenti berlangganan|stop receiving|manage (your )?(email )?preferences|kelola preferensi)/i;
+/** "Label : value" lines that real receipts and bank notices have. */
+const FIELD_LABELS = /^\s*(nominal|total( bayar| pembayaran| payment| tagihan| paid)?|grand total|jumlah( transaksi| pembayaran)?|amount|no\.? ?ref(erensi)?|reference( no\.?| number)?|id transaksi|transaction (id|type|date)|order (id|no\.?)|no\.? ?pesanan|no\.? ?invoice|invoice (no\.?|number)|merchant|nama merchant|company\/product|status( transaksi)?|tanggal( transaksi)?|waktu( transaksi)?|metode pembayaran|payment method|sumber dana|rekening tujuan|nama penerima|penerima|beneficiary( name)?|jenis transaksi)\s*[:\-]/gim;
+
+/** Smallest amount we treat as a real payment; promos often yield "Rp10" from "Rp10 rb". */
+const MIN_AMOUNT = 500;
+
+const AMOUNT_RE = /(?:IDR|Rp\.?)\s?(\d{1,3}(?:[., \u00a0]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?!\d)(\s?(?:rb|ribu|k|jt|juta|m|miliar|milyar)\b)?/gi;
 const AMOUNT_KEY = /(grand total|total pembayaran|total payment|total bayar|total tagihan|total|nominal|jumlah|amount|sebesar|harga|price|charged)/i;
 
 export function extractAmount(text: string): number | null {
   let best: { value: number; score: number } | null = null;
   for (const line of text.split(/\n/)) {
     for (const m of line.matchAll(AMOUNT_RE)) {
+      // "Rp10 rb", "Rp 5 juta": marketing shorthand, never how receipts state totals.
+      if (m[2]) continue;
       const value = parseAmount(m[1]);
       if (!value || value <= 0) continue;
       const key = line.match(AMOUNT_KEY)?.[1]?.toLowerCase() ?? "";
@@ -159,19 +175,64 @@ export function htmlToText(html: string): string {
     .replace(/\n\s*\n+/g, "\n");
 }
 
+const RECIPIENT_RE =
+  /^\s*(?:nama penerima|penerima|nama tujuan|rekening tujuan|tujuan|beneficiary(?: name)?|recipient(?: name)?|transfer ke|ke|to)\s*[:\-]\s*(.+)$/im;
+
+/** Person or account a transfer went to, e.g. "BUDI SANTOSO" from "Nama Penerima : BUDI SANTOSO". */
+export function extractRecipient(text: string): string | null {
+  const m = text.match(RECIPIENT_RE)?.[1];
+  if (!m) return null;
+  // Drop account numbers and bank codes around the name: "0123456789 - BUDI SANTOSO (BCA)".
+  const name = m
+    .replace(/\(.*?\)/g, " ")
+    .replace(/\b(?:rek(?:ening)?|acc(?:ount)?|no\.?)\b\.?/gi, " ")
+    .replace(/[\d*xX]{4,}/g, " ")
+    .replace(/[-–|/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name.length >= 2 && /[a-z]/i.test(name) && !/^(rp|idr)\b/i.test(name) ? name.slice(0, 50) : null;
+}
+
+/** Why an email is (not) treated as a transaction; exported for tests and debugging. */
+export function transactionSignals(msg: Pick<EmailMessage, "subject" | "body">) {
+  const labels = new Set([...msg.body.matchAll(FIELD_LABELS)].map((m) => m[1].toLowerCase())).size;
+  return {
+    strongSubject: STRONG_SUBJECT.test(msg.subject),
+    txSubject: TX_SUBJECT.test(msg.subject),
+    promoSubject: PROMO.test(msg.subject) || /\?\s*\S{0,3}\s*$/.test(msg.subject),
+    promoBody: (msg.body.match(new RegExp(PROMO.source, "gi")) ?? []).length,
+    unsubscribe: UNSUBSCRIBE.test(msg.body),
+    labels,
+  };
+}
+
+function looksLikeTransaction(msg: EmailMessage): boolean {
+  const s = transactionSignals(msg);
+  // Marketing subject ("Mau belanja lebih hemat?", "Flash Sale…") without a receipt-style subject.
+  if (s.promoSubject && !s.strongSubject) return false;
+  // Newsletter-style body: unsubscribe link or lots of promo words, and few receipt fields.
+  if ((s.unsubscribe || s.promoBody >= 3) && s.labels < 2 && !s.strongSubject) return false;
+  if (s.strongSubject) return true;
+  if (s.txSubject && s.labels >= 1) return true;
+  return s.labels >= 2;
+}
+
 export function parseEmail(msg: EmailMessage): ParsedTx | null {
   const text = `${msg.subject}\n${msg.body}`;
   if (SKIP.test(text)) return null;
-  if (PROMO.test(msg.subject) && !/(receipt|struk|berhasil|invoice)/i.test(msg.subject)) return null;
-  if (!TX_WORDS.test(text) && !INCOMING.test(text)) return null;
+  if (!looksLikeTransaction(msg)) return null;
 
   const src = detectSource(msg.from, msg.subject);
   const amount = extractAmount(msg.body) ?? extractAmount(msg.subject);
-  if (!amount) return null;
+  if (!amount || amount < MIN_AMOUNT) return null;
 
   // "Kartu kredit" / "credit card" talk about the card type, not money coming in.
   const dirText = text.replace(/kartu kredit|credit card|kredit card/gi, "");
   const direction: Direction = INCOMING.test(dirText) ? "in" : "out";
+
+  const isTransfer = /\btransfer\b|bi-?fast|\brtol\b|\bskn\b|kirim uang|send money/i.test(text);
+  const recipient = direction === "out" && isTransfer ? extractRecipient(msg.body) : null;
+  const sender = direction === "in" ? extractSender(msg.body) : null;
 
   const senderName = msg.from.replace(/<.*>/, "").replace(/"/g, "").trim();
   return {
@@ -179,10 +240,22 @@ export function parseEmail(msg: EmailMessage): ParsedTx | null {
     date: msg.date,
     amount,
     direction,
-    merchant: extractMerchant(msg.body, msg.subject, src),
+    merchant: recipient ? `Transfer ke ${recipient}` : sender ? `Dari ${sender}` : extractMerchant(msg.body, msg.subject, src),
+    recipient: recipient ?? undefined,
+    subject: msg.subject.slice(0, 120),
     source: src?.name ?? (senderName || "Email"),
     sourceKind: src?.kind ?? "merchant",
-    hint: direction === "in" ? "Pemasukan" : src?.hint ?? null,
+    hint: direction === "in" ? "Pemasukan" : recipient ? "Transfer" : src?.hint ?? null,
     body: msg.body,
   };
+}
+
+const SENDER_RE = /^\s*(?:dari|pengirim|nama pengirim|from|sender(?: name)?)\s*[:\-]\s*(.+)$/im;
+
+/** Who sent money in, e.g. "PT MAJU JAYA" from "Dari : PT MAJU JAYA". */
+function extractSender(text: string): string | null {
+  const m = text.match(SENDER_RE)?.[1];
+  if (!m) return null;
+  const name = m.replace(/\(.*?\)/g, " ").replace(/[\d*xX]{4,}/g, " ").replace(/[-–|/]+/g, " ").replace(/\s+/g, " ").trim();
+  return name.length >= 2 && /[a-z]/i.test(name) ? name.slice(0, 50) : null;
 }
