@@ -2,7 +2,10 @@ import { useState } from "react";
 import type { Bank } from "../types";
 import { Bubble, Mascot } from "./Mascot";
 import { BankForm, MoneyInput } from "./BankForm";
+import { Wordmark } from "./Logo";
 import { formatIDR } from "../lib/money";
+
+const BUDGETS = [250_000, 500_000, 1_000_000, 2_000_000];
 
 export function Onboarding({ onDone }: { onDone: (name: string, banks: Bank[], budget: number) => void }) {
   const [step, setStep] = useState(0);
@@ -10,63 +13,77 @@ export function Onboarding({ onDone }: { onDone: (name: string, banks: Bank[], b
   const [banks, setBanks] = useState<Bank[]>([]);
   const [budget, setBudget] = useState(500_000);
 
+  const canNext = step === 0 ? !!name.trim() : step === 1 ? banks.length > 0 : true;
+  const next = () => (step < 2 ? setStep(step + 1) : onDone(name.trim(), banks, budget));
+
   return (
     <div className="onboarding">
-      <div className="progress"><div style={{ width: `${((step + 1) / 3) * 100}%` }} /></div>
+      <header className="ob-head">
+        {step > 0 ? (
+          <button className="ob-back" aria-label="Kembali" onClick={() => setStep(step - 1)}>‹</button>
+        ) : (
+          <Wordmark />
+        )}
+        <div className="bar grow"><i style={{ width: `${((step + 1) / 3) * 100}%` }} /></div>
+      </header>
 
-      {step === 0 && (
-        <section className="step">
-          <div className="stage stage-happy onboard-stage">
-            <div className="stars" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
-            <Mascot mood="happy" size={190} interactive />
-            <div className="clouds" aria-hidden="true" />
-          </div>
-          <Bubble>
-            Halo! Aku <b>Kobi</b>, celengan galakmu 🐷<br />
-            Aku bakal baca email transaksi kamu dan jagain uangmu. Tapi awas… aku bisa <b>marah</b> kalau kamu kebanyakan jajan hiburan!
-          </Bubble>
-          <input id="nickname" className="text-input big" placeholder="Nama panggilanmu" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="btn wide" disabled={!name.trim()} onClick={() => setStep(1)}>Lanjut</button>
-        </section>
-      )}
-
-      {step === 1 && (
-        <section className="step">
-          <Mascot mood="chill" size={120} interactive />
-          <Bubble>Oke {name}! Tambahin bank & e-wallet kamu, terus isi saldo <b>sekarang</b>. Mulai dari sini aku yang hitung.</Bubble>
-          {banks.map((b) => (
-            <div key={b.id} className="bank-row" style={{ "--bank": b.color } as React.CSSProperties}>
-              <span className="dot" />
-              <b>{b.name}</b>
-              <span className="grow" />
-              <span>{formatIDR(b.initialBalance)}</span>
-              <button className="icon-btn" aria-label={`Hapus ${b.name}`} onClick={() => setBanks(banks.filter((x) => x.id !== b.id))}>✕</button>
+      <main className="ob-body" key={step}>
+        {step === 0 && (
+          <>
+            <div className="ob-hero">
+              <Mascot mood="happy" size={170} interactive />
+              <Bubble tail="left">Halo! Aku <b>Kobi</b>, celengan galakmu. Siapa namamu?</Bubble>
             </div>
-          ))}
-          <BankForm existing={banks} onAdd={(b) => setBanks([...banks, b])} />
-          <div className="row">
-            <button className="btn ghost" onClick={() => setStep(0)}>Kembali</button>
-            <button className="btn" disabled={!banks.length} onClick={() => setStep(2)}>Lanjut</button>
-          </div>
-        </section>
-      )}
+            <h1 className="ob-title">Aku bakal jagain uangmu dari email transaksi. Tapi awas, aku bisa <span className="hl">marah</span> kalau kamu boros hiburan!</h1>
+            <input id="nickname" className="text-input big" placeholder="Nama panggilanmu" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          </>
+        )}
 
-      {step === 2 && (
-        <section className="step">
-          <Mascot mood="worried" size={120} interactive />
-          <Bubble>Terakhir! Berapa batas jajan <b>Hiburan</b> kamu sebulan? (Netflix, game, bioskop, top up…) Lewat dari ini, aku ngamuk 😤</Bubble>
-          <MoneyInput value={budget} onChange={setBudget} />
-          <div className="chips">
-            {[250_000, 500_000, 1_000_000, 2_000_000].map((v) => (
-              <button key={v} className={`chip ${budget === v ? "on" : ""}`} onClick={() => setBudget(v)}>{formatIDR(v)}</button>
-            ))}
-          </div>
-          <div className="row">
-            <button className="btn ghost" onClick={() => setStep(1)}>Kembali</button>
-            <button className="btn" onClick={() => onDone(name.trim(), banks, budget)}>Mulai!</button>
-          </div>
-        </section>
-      )}
+        {step === 1 && (
+          <>
+            <div className="ob-hero small">
+              <Mascot mood="chill" size={110} interactive />
+              <Bubble tail="left">Oke {name}! Bank & e-wallet apa aja yang kamu pakai?</Bubble>
+            </div>
+            {banks.length > 0 && (
+              <div className="card list">
+                {banks.map((b) => (
+                  <div key={b.id} className="bank-row">
+                    <span className="bank-badge" style={{ "--bank": b.color } as React.CSSProperties}>{b.name.slice(0, 2).toUpperCase()}</span>
+                    <b className="grow">{b.name}</b>
+                    <span className="money">{formatIDR(b.initialBalance)}</span>
+                    <button className="icon-btn" aria-label={`Hapus ${b.name}`} onClick={() => setBanks(banks.filter((x) => x.id !== b.id))}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <BankForm existing={banks} onAdd={(b) => setBanks([...banks, b])} />
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <div className="ob-hero small">
+              <Mascot mood="worried" size={110} interactive />
+              <Bubble tail="left">Terakhir! Berapa batas jajan <b>Hiburan</b> kamu sebulan? Lewat dari ini, aku ngamuk 😤</Bubble>
+            </div>
+            <div className="pick-grid two">
+              {BUDGETS.map((v) => (
+                <button key={v} className={`pick tall ${budget === v ? "on" : ""}`} onClick={() => setBudget(v)}>
+                  <b>{formatIDR(v)}</b>
+                  <small>{v <= 250_000 ? "Super hemat" : v <= 500_000 ? "Santai" : v <= 1_000_000 ? "Lumayan" : "Sultan"}</small>
+                </button>
+              ))}
+            </div>
+            <p className="muted center">atau ketik sendiri</p>
+            <MoneyInput id="budget" value={budget} onChange={setBudget} />
+          </>
+        )}
+      </main>
+
+      <footer className="ob-foot">
+        <button className="btn wide" disabled={!canNext} onClick={next}>{step < 2 ? "Lanjut" : "Mulai!"}</button>
+      </footer>
     </div>
   );
 }

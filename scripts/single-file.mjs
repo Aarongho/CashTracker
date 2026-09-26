@@ -10,10 +10,10 @@ const out = process.argv[2] ?? "cashtracker-single.html";
 writeFileSync(
   out,
   `<title>CashTracker</title>
-<meta name="theme-color" content="#ff8fab">
+<meta name="theme-color" content="#ff4f93">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Nunito:wght@800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>${css}</style>
 <div id="root"></div>
 <script type="module">${js.replace(/<\/script/gi, "<\\/script")}</script>

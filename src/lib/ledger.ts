@@ -129,3 +129,23 @@ export function monthStats(txs: Transaction[], month = monthKey(new Date())): Mo
   }
   return { spent, income, byCategory, byDay, hiburan: byCategory.Hiburan ?? 0, count };
 }
+
+/**
+ * Duolingo-style streak: consecutive days (ending today) without any Hiburan spending,
+ * counted no further back than when the user started tracking.
+ */
+export function hematStreak(txs: Transaction[], since: string | undefined, today = new Date()): number {
+  const start = since ? new Date(since) : today;
+  start.setHours(0, 0, 0, 0);
+  const funDays = new Set(
+    txs.filter((t) => t.direction === "out" && t.category === "Hiburan").map((t) => new Date(t.date).toDateString()),
+  );
+  let n = 0;
+  const d = new Date(today);
+  d.setHours(0, 0, 0, 0);
+  while (d >= start && !funDays.has(d.toDateString()) && n < 3650) {
+    n++;
+    d.setDate(d.getDate() - 1);
+  }
+  return n;
+}

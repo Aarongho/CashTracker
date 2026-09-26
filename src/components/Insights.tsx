@@ -4,6 +4,7 @@ import { CATEGORY_META } from "../types";
 import { monthKey, monthStats } from "../lib/ledger";
 import { formatIDR, formatShort } from "../lib/money";
 import { emailSource, monogram, sourceColor } from "../lib/brand";
+import { ColorIcon } from "./icons";
 
 export function Insights({ state }: { state: AppState }) {
   const months = useMemo(() => {
@@ -62,9 +63,15 @@ export function Insights({ state }: { state: AppState }) {
         ))}
       </div>
 
-      <section className="stat-grid">
-        <div className="card stat"><small>Pengeluaran</small><b>{formatIDR(stats.spent)}</b></div>
-        <div className="card stat"><small>Pemasukan</small><b>{formatIDR(stats.income)}</b></div>
+      <section className="stat-grid stagger">
+        <div className="tile stat" style={{ "--i": 0 } as React.CSSProperties}>
+          <ColorIcon name="down" size={30} />
+          <div><b>{formatShort(stats.spent)}</b><small>Pengeluaran</small></div>
+        </div>
+        <div className="tile stat" style={{ "--i": 1 } as React.CSSProperties}>
+          <ColorIcon name="up" size={30} />
+          <div><b>{formatShort(stats.income)}</b><small>Pemasukan</small></div>
+        </div>
       </section>
 
       <section className="card">

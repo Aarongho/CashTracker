@@ -10,15 +10,17 @@ import { Settings } from "./components/Settings";
 import { TxEditor } from "./components/TxEditor";
 import { Mascot } from "./components/Mascot";
 import { GmailSetup } from "./components/GmailSetup";
-import { Icon, type IconName } from "./components/icons";
-import { formatIDR } from "./lib/money";
+import { ColorIcon, type ColorIconName } from "./components/icons";
+import { LogoMark } from "./components/Logo";
+import { formatIDR, formatShort } from "./lib/money";
+import { bankBalance, hematStreak } from "./lib/ledger";
 
 type Tab = "home" | "tx" | "insight" | "settings";
-const TABS: { id: Tab; label: string; icon: IconName }[] = [
-  { id: "home", label: "Home", icon: "home" },
-  { id: "tx", label: "Riwayat", icon: "list" },
-  { id: "insight", label: "Insight", icon: "chart" },
-  { id: "settings", label: "Atur", icon: "gear" },
+const TABS: { id: Tab; label: string; icon: ColorIconName }[] = [
+  { id: "home", label: "Beranda", icon: "home" },
+  { id: "tx", label: "Riwayat", icon: "history" },
+  { id: "insight", label: "Insight", icon: "insight" },
+  { id: "settings", label: "Atur", icon: "settings" },
 ];
 
 interface Toast {
@@ -89,6 +91,13 @@ export default function App() {
 
   return (
     <div className="app">
+      <TopBar
+        streak={hematStreak(state.transactions, state.banks.map((b) => b.setAt).sort()[0])}
+        total={state.banks.reduce((sum, b) => sum + bankBalance(b, state.transactions), 0)}
+        sync={sync}
+        onSetupGmail={() => setGmailOpen(true)}
+      />
+
       <main key={tab} className={`view enter-${dir}`}>
         {tab === "home" && <Home state={state} sync={sync} onOpenTx={openTx} onSeeAll={() => setTab("tx")} onSetupGmail={() => setGmailOpen(true)} now={now} />}
         {tab === "tx" && <Transactions state={state} onOpenTx={openTx} onAdd={() => setEditing("new")} />}
@@ -100,7 +109,7 @@ export default function App() {
         <span className="tab-pill" aria-hidden="true" />
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}>
-            <span className="tab-icon"><Icon name={t.icon} size={22} /></span>
+            <span className="tab-icon"><ColorIcon name={t.icon} size={30} /></span>
             <span className="tab-label">{t.label}</span>
           </button>
         ))}
@@ -134,5 +143,28 @@ export default function App() {
         ))}
       </div>
     </div>
+  );
+}
+
+function TopBar({ streak, total, sync, onSetupGmail }: { streak: number; total: number; sync: ReturnType<typeof useSync>; onSetupGmail: () => void }) {
+  const status = sync.mode !== "gmail" || sync.needsReconnect ? "off" : sync.status;
+  const label = sync.mode !== "gmail" ? "Sambungkan Gmail" : sync.needsReconnect ? "Gmail terputus, tap untuk sambungkan" : sync.status === "syncing" ? "Membaca Gmail" : "Gmail live, tap untuk sync";
+  return (
+    <header className="topbar">
+      <LogoMark size={34} />
+      <div className="topbar-stats">
+        <span className="tstat orange" title="Hari tanpa jajan Hiburan"><ColorIcon name="flame" size={26} />{streak}</span>
+        <span className="tstat yellow" title="Total saldo"><ColorIcon name="coin" size={26} />{formatShort(total).replace("Rp", "")}</span>
+        <button
+          className={`tstat mail ${status}`}
+          aria-label={label}
+          title={label}
+          onClick={sync.mode === "gmail" && !sync.needsReconnect ? sync.syncGmail : onSetupGmail}
+        >
+          <ColorIcon name="mail" size={26} />
+          <span className="dot" />
+        </button>
+      </div>
+    </header>
   );
 }

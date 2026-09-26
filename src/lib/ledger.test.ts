@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bankBalance, mergeParsed, monthStats } from "./ledger";
+import { bankBalance, hematStreak, mergeParsed, monthStats } from "./ledger";
 import { parseEmail } from "./parsers";
 import { initialState } from "../store";
 import { demoInbox } from "./demo";
@@ -44,5 +44,24 @@ describe("demo month", () => {
     const stats = monthStats(state.transactions);
     expect(stats.hiburan).toBeGreaterThan(0);
     expect(["worried", "angry", "furious"]).toContain(computeMood(stats, 500_000, false));
+  });
+});
+
+describe("hematStreak", () => {
+  const tx = (date: string, category: "Hiburan" | "Makanan") =>
+    ({ id: date, date, amount: 1, direction: "out", merchant: "x", category, bankId: null, source: "x" }) as const;
+  const today = new Date(2026, 8, 20, 15);
+
+  it("counts days since the last Hiburan spend", () => {
+    const txs = [tx(new Date(2026, 8, 16, 10).toISOString(), "Hiburan"), tx(new Date(2026, 8, 19, 10).toISOString(), "Makanan")];
+    expect(hematStreak([...txs], new Date(2026, 8, 1).toISOString(), today)).toBe(4);
+  });
+
+  it("is 0 when you spent on Hiburan today", () => {
+    expect(hematStreak([tx(new Date(2026, 8, 20, 9).toISOString(), "Hiburan")], new Date(2026, 8, 1).toISOString(), today)).toBe(0);
+  });
+
+  it("stops at the day tracking started", () => {
+    expect(hematStreak([], new Date(2026, 8, 18, 12).toISOString(), today)).toBe(3);
   });
 });
