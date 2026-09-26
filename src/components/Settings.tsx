@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AppState, Bank } from "../types";
 import type { Action } from "../store";
 import { SOURCES } from "../lib/parsers";
@@ -6,6 +6,21 @@ import { bankBalance } from "../lib/ledger";
 import { formatIDR } from "../lib/money";
 import { BankForm, MoneyInput } from "./BankForm";
 import type { useSync } from "../useSync";
+
+/** Two-tap destructive button: first tap arms it, second tap within 4s confirms. */
+function ConfirmButton({ label, confirmLabel, onConfirm, className }: { label: string; confirmLabel: string; onConfirm: () => void; className: string }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(id);
+  }, [armed]);
+  return (
+    <button className={className} onClick={() => (armed ? onConfirm() : setArmed(true))}>
+      {armed ? confirmLabel : label}
+    </button>
+  );
+}
 
 export function Settings({ state, dispatch, sync }: { state: AppState; dispatch: React.Dispatch<Action>; sync: ReturnType<typeof useSync> }) {
   const [adding, setAdding] = useState(false);
@@ -33,7 +48,7 @@ export function Settings({ state, dispatch, sync }: { state: AppState; dispatch:
             <p className="muted">Saldo {editing.bank.name} yang benar sekarang:</p>
             <MoneyInput value={editing.balance} onChange={(n) => setEditing({ ...editing, balance: n })} autoFocus />
             <div className="row">
-              <button className="btn danger small" onClick={() => { if (confirm(`Hapus ${editing.bank.name}?`)) { dispatch({ type: "removeBank", id: editing.bank.id }); setEditing(null); } }}>Hapus bank</button>
+              <ConfirmButton className="btn danger small" label="Hapus bank" confirmLabel="Yakin hapus?" onConfirm={() => { dispatch({ type: "removeBank", id: editing.bank.id }); setEditing(null); }} />
               <span className="grow" />
               <button className="btn ghost small" onClick={() => setEditing(null)}>Batal</button>
               <button className="btn small" onClick={() => { dispatch({ type: "updateBank", bank: { ...editing.bank, initialBalance: editing.balance, setAt: new Date().toISOString() } }); setEditing(null); }}>Simpan</button>
@@ -90,7 +105,7 @@ export function Settings({ state, dispatch, sync }: { state: AppState; dispatch:
       <section className="card">
         <b>⚠️ Data</b>
         <p className="muted">Semua data disimpan di browser ini saja.</p>
-        <button className="btn danger" onClick={() => { if (confirm("Hapus semua data CashTracker?")) { sync.stop(); dispatch({ type: "reset" }); } }}>Reset semua data</button>
+        <ConfirmButton className="btn danger" label="Reset semua data" confirmLabel="Yakin? Tap lagi untuk hapus semua" onConfirm={() => { sync.stop(); dispatch({ type: "reset" }); }} />
       </section>
     </div>
   );
