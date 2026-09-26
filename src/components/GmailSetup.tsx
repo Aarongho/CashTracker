@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { Sheet } from "./Sheet";
 import { Icon } from "./icons";
-import { clientIdFromEnv, looksLikeClientId } from "../lib/gmail";
+import { looksLikeClientId, usingBuiltInClientId } from "../lib/gmail";
 import type { useSync } from "../useSync";
 
 const PAGES_URL = "https://aarongho.github.io/cashtracker/";
 
 /** Guided setup: create a Google OAuth client, paste its ID, connect. */
 export function GmailSetup({ sync, onClose }: { sync: ReturnType<typeof useSync>; onClose: () => void }) {
-  const [id, setId] = useState(sync.clientId);
+  const builtIn = usingBuiltInClientId();
+  const [custom, setCustom] = useState(!builtIn);
+  const [id, setId] = useState(builtIn ? "" : sync.clientId);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const origin = window.location.origin;
@@ -27,7 +29,8 @@ export function GmailSetup({ sync, onClose }: { sync: ReturnType<typeof useSync>
   };
 
   const connect = async () => {
-    if (!clientIdFromEnv()) sync.saveClientId(id);
+    // Empty custom field = go back to the built-in client ID.
+    if (custom) sync.saveClientId(id);
     setBusy(true);
     const ok = await sync.connectGmail();
     setBusy(false);
@@ -43,10 +46,14 @@ export function GmailSetup({ sync, onClose }: { sync: ReturnType<typeof useSync>
           <a href={PAGES_URL} target="_blank" rel="noreferrer">{PAGES_URL}</a>
         </div>
       ) : (
-        <p className="muted">Sekali setup (±10 menit). Kobi cuma bisa <b>membaca</b> email transaksi, dan semuanya diproses di browser kamu.</p>
+        <p className="muted">Login pakai akun Google kamu. Kobi cuma bisa <b>membaca</b> email transaksi, dan semuanya diproses di browser kamu.</p>
       )}
 
-      {!clientIdFromEnv() && (
+      {builtIn && !custom && (
+        <button className="link" onClick={() => setCustom(true)}>Pakai Google Client ID sendiri</button>
+      )}
+
+      {custom && (
         <ol className="steps">
           <li>
             <b>Buat project & aktifkan Gmail API</b>
@@ -82,7 +89,7 @@ export function GmailSetup({ sync, onClose }: { sync: ReturnType<typeof useSync>
 
       {sync.error && <div className="notice bad">{sync.error}</div>}
 
-      <button className="btn wide" disabled={busy || sandboxed || (!clientIdFromEnv() && !valid)} onClick={connect}>
+      <button className="btn wide" disabled={busy || sandboxed || (custom && !valid && !(builtIn && !id))} onClick={connect}>
         <Icon name="mail" size={18} /> {busy ? "Menghubungkan…" : "Login dengan Google"}
       </button>
       <p className="fine"><Icon name="lock" size={14} /> Akses read-only. Token cuma disimpan di memori, hilang saat tab ditutup.</p>

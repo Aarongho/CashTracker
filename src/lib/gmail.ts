@@ -4,16 +4,25 @@ const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 const CLIENT_KEY = "cashtracker:clientId";
-const ENV_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || "";
+/**
+ * OAuth client for the hosted site (https://aarongho.github.io). A client ID is public by
+ * design: every browser that signs in sees it. It only works on the origins authorized for
+ * it in Google Cloud, so forks should set VITE_GOOGLE_CLIENT_ID or paste their own.
+ */
+const DEFAULT_CLIENT_ID = "464707396243-j0tcnb0uo8mh78vssn1gop7npdqql29b.apps.googleusercontent.com";
+const BUILT_IN_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || DEFAULT_CLIENT_ID;
 
-/** Build-time client ID wins; otherwise the one the user pasted in the app. */
-export function getClientId(): string {
-  if (ENV_CLIENT_ID) return ENV_CLIENT_ID;
+function storedClientId(): string {
   try {
     return localStorage.getItem(CLIENT_KEY) ?? "";
   } catch {
     return "";
   }
+}
+
+/** A client ID the user pasted in the app wins; otherwise the built-in one. */
+export function getClientId(): string {
+  return storedClientId() || BUILT_IN_CLIENT_ID;
 }
 
 export function setClientId(id: string): void {
@@ -25,7 +34,8 @@ export function setClientId(id: string): void {
   }
 }
 
-export const clientIdFromEnv = () => !!ENV_CLIENT_ID;
+/** True when the user hasn't pasted their own client ID. */
+export const usingBuiltInClientId = () => !storedClientId() && !!BUILT_IN_CLIENT_ID;
 
 export function looksLikeClientId(id: string): boolean {
   return /^[\w-]+\.apps\.googleusercontent\.com$/.test(id.trim());
