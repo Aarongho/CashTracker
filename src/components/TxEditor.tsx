@@ -17,12 +17,14 @@ export function TxEditor({
   banks,
   onSave,
   onDelete,
+  onViewEmail,
   onClose,
 }: {
   tx: Transaction | null;
   banks: Bank[];
   onSave: (t: Transaction, remember: boolean) => void;
   onDelete?: (id: string) => void;
+  onViewEmail?: (t: Transaction) => void;
   onClose: () => void;
 }) {
   const isNew = !tx;
@@ -49,6 +51,7 @@ export function TxEditor({
             <small>Dari email {tx.mergedFrom?.length ? `${tx.mergedFrom[0]} + ${tx.source}` : tx.source}</small>
             {tx.subject && <b>“{tx.subject}”</b>}
             {tx.recipient && <span>Penerima: <b>{tx.recipient}</b></span>}
+            {onViewEmail && <button className="link left" onClick={() => onViewEmail(tx)}>✉️ LIHAT EMAIL ASLI</button>}
           </div>
         )}
 

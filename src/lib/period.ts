@@ -83,7 +83,9 @@ export interface Summary {
 export function summarize(txs: Transaction[]): Summary {
   const s: Summary = { spent: 0, income: 0, count: txs.length, byCategory: {} };
   for (const t of txs) {
-    if (t.direction === "in") s.income += t.amount;
+    if (t.direction === "in") {
+      if (t.category !== "Transfer") s.income += t.amount;
+    }
     else if (t.category !== "Transfer") {
       s.spent += t.amount;
       s.byCategory[t.category] = (s.byCategory[t.category] ?? 0) + t.amount;

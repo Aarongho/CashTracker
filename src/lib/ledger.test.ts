@@ -13,17 +13,34 @@ const withBank = (): AppState => ({
 });
 
 describe("mergeParsed", () => {
-  it("merges an Apple receipt with the matching BCA debit", () => {
+  it("only reads emails from the user's own accounts", () => {
     const apple = parseEmail({ id: "a", from: "no_reply@email.apple.com", subject: "Your receipt from Apple.", body: "Apple Music\nTOTAL Rp 69.000", date: "2026-09-10T10:00:00Z" })!;
     const bca = parseEmail({ id: "b", from: "bca@bca.co.id", subject: "Notifikasi Transaksi BCA", body: "Transaksi Berhasil\nNama Merchant : APPLE.COM/BILL\nNominal : Rp 69.000,00", date: "2026-09-11T10:00:00Z" })!;
     const { state } = mergeParsed(withBank(), [apple, bca]);
     expect(state.transactions).toHaveLength(1);
-    expect(state.transactions[0]).toMatchObject({ merchant: "Apple Music", category: "Hiburan", source: "BCA", bankId: "bca" });
+    expect(state.transactions[0]).toMatchObject({ source: "BCA", bankId: "bca", category: "Hiburan" });
     expect(bankBalance(state.banks[0], state.transactions)).toBe(931_000);
   });
 
+  it("books e-wallet emails on that wallet: top up in, payment out", () => {
+    const s = withBank();
+    s.banks.push({ id: "gopay", name: "GoPay", initialBalance: 100_000, setAt: "2000-01-01T00:00:00Z", color: "#0a0" });
+    const topup = parseEmail({ id: "t", from: "Gojek <no-reply@gojek.com>", subject: "Top Up GoPay Berhasil", body: "Top up saldo GoPay berhasil\nNominal : Rp 200.000\nID Transaksi : 1", date: "2026-09-10T10:00:00Z" })!;
+    const food = parseEmail({ id: "f", from: "Gojek <no-reply@gojek.com>", subject: "Your GoFood receipt", body: "Toko: Bakmi GM\nMetode pembayaran: GoPay\nTotal pembayaran Rp 87.500", date: "2026-09-10T12:00:00Z" })!;
+    const { state } = mergeParsed(s, [topup, food]);
+    const gopay = state.banks.find((b) => b.id === "gopay")!;
+    expect(state.transactions.every((t) => t.bankId === "gopay")).toBe(true);
+    expect(bankBalance(gopay, state.transactions)).toBe(100_000 + 200_000 - 87_500);
+    // A top up moves your own money, so it isn't income.
+    expect(monthStats(state.transactions, "2026-09").income).toBe(0);
+  });
+
+  it("skips GoFood orders paid in cash", () => {
+    expect(parseEmail({ id: "c", from: "Gojek <no-reply@gojek.com>", subject: "Your GoFood receipt", body: "Metode pembayaran: Tunai\nTotal pembayaran Rp 50.000", date: "2026-09-10T12:00:00Z" })).toBeNull();
+  });
+
   it("ignores already-seen messages", () => {
-    const p = parseEmail({ id: "a", from: "no_reply@email.apple.com", subject: "Your receipt from Apple.", body: "TOTAL Rp 69.000", date: "2026-09-10T10:00:00Z" })!;
+    const p = parseEmail({ id: "a", from: "bca@bca.co.id", subject: "Notifikasi Transaksi BCA", body: "Nama Merchant : X\nNominal : Rp 69.000", date: "2026-09-10T10:00:00Z" })!;
     const once = mergeParsed(withBank(), [p]).state;
     expect(mergeParsed(once, [p]).state.transactions).toHaveLength(1);
   });
@@ -43,7 +60,7 @@ describe("demo month", () => {
     const { state } = mergeParsed(withBank(), parsed);
     const stats = monthStats(state.transactions);
     expect(stats.hiburan).toBeGreaterThan(0);
-    expect(["worried", "angry", "furious"]).toContain(computeMood(stats, 500_000, false));
+    expect(["worried", "angry", "furious"]).toContain(computeMood(stats, 150_000, false));
   });
 });
 

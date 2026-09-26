@@ -1,21 +1,11 @@
 import type { AppState, Bank, Category, Transaction } from "../types";
 import { categorize } from "./categorize";
 import { SOURCES, type ParsedTx } from "./parsers";
+import { accountForSender } from "./accounts";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 const DAY = 86_400_000;
-
-function bankForSource(state: AppState, p: ParsedTx): string | null {
-  if (p.sourceKind === "bank") {
-    const want = p.source.toLowerCase();
-    const bank = state.banks.find((b) => b.name.toLowerCase().includes(want) || want.includes(b.name.toLowerCase()));
-    if (bank) return bank.id;
-  }
-  const mapped = state.settings.sourceBank[p.source];
-  if (mapped && state.banks.some((b) => b.id === mapped)) return mapped;
-  return state.banks[0]?.id ?? null;
-}
 
 /**
  * A merchant receipt (Apple, Gojek…) and the bank's own notification often describe
@@ -48,6 +38,10 @@ export function mergeParsed(state: AppState, parsed: ParsedTx[]): MergeResult {
   for (const p of [...parsed].sort((a, b) => a.date.localeCompare(b.date))) {
     if (seen.has(p.messageId)) continue;
     seen.add(p.messageId);
+    // Every email belongs to the account that sent it: a BCA email is BCA money,
+    // a Gojek/GoPay email is GoPay money. Senders that aren't the user's accounts are ignored.
+    const account = accountForSender(state.banks, p.from);
+    if (!account) continue;
     const tx: Transaction = {
       id: uid(),
       messageId: p.messageId,
@@ -56,7 +50,7 @@ export function mergeParsed(state: AppState, parsed: ParsedTx[]): MergeResult {
       direction: p.direction,
       merchant: p.merchant,
       category: categorize(p.merchant, p.hint, p.body, state.settings),
-      bankId: bankForSource(state, p),
+      bankId: account.id,
       source: p.source,
       recipient: p.recipient,
       subject: p.subject,
@@ -121,7 +115,8 @@ export function monthStats(txs: Transaction[], month = monthKey(new Date())): Mo
     if (monthKey(t.date) !== month) continue;
     count++;
     if (t.direction === "in") {
-      income += t.amount;
+      // Top ups / moves between your own accounts aren't income.
+      if (t.category !== "Transfer") income += t.amount;
       continue;
     }
     if (t.category === "Transfer") continue; // moving your own money isn't spending

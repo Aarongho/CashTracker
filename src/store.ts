@@ -25,6 +25,7 @@ export type Action =
   | { type: "updateTx"; tx: Transaction; rememberCategory?: boolean }
   | { type: "removeTx"; id: string }
   | { type: "settings"; patch: Partial<Settings> }
+  | { type: "tour"; done: boolean }
   | { type: "reset" };
 
 export function reducer(state: AppState, a: Action): AppState {
@@ -65,6 +66,8 @@ export function reducer(state: AppState, a: Action): AppState {
       return { ...state, transactions: state.transactions.filter((t) => t.id !== a.id) };
     case "settings":
       return { ...state, settings: { ...state.settings, ...a.patch } };
+    case "tour":
+      return { ...state, tourDone: a.done };
     case "reset":
       return initialState;
   }

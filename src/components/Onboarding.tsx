@@ -61,6 +61,10 @@ export function Onboarding({ onDone }: { onDone: (name: string, banks: Bank[], b
               </div>
             )}
             <BankForm existing={banks} onAdd={(b) => setBanks([...banks, b])} />
+            <div className="notice info">
+              <b>📬 Kobi cuma baca email dari akun yang kamu tambahkan di sini.</b>
+              <span>Pastikan tiap bank & e-wallet mengirim email notifikasi setiap kali ada transaksi.</span>
+            </div>
           </>
         )}
 

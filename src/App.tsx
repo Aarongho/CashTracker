@@ -10,6 +10,8 @@ import { Settings } from "./components/Settings";
 import { TxEditor } from "./components/TxEditor";
 import { Mascot } from "./components/Mascot";
 import { GmailSetup } from "./components/GmailSetup";
+import { Tour } from "./components/Tour";
+import { EmailViewer } from "./components/EmailViewer";
 import { ColorIcon, type ColorIconName } from "./components/icons";
 import { LogoMark } from "./components/Logo";
 import { preloadGis } from "./lib/gmail";
@@ -35,6 +37,7 @@ export default function App() {
   const [tab, setTabRaw] = useState<Tab>("home");
   const [dir, setDir] = useState<"left" | "right">("right");
   const [gmailOpen, setGmailOpen] = useState(false);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
   const tabIndex = TABS.findIndex((t) => t.id === tab);
   const setTab = (t: Tab) => {
     const to = TABS.findIndex((x) => x.id === t);
@@ -109,10 +112,10 @@ export default function App() {
         {tab === "home" && <Home state={state} sync={sync} onOpenTx={openTx} onSeeAll={() => setTab("tx")} onSetupGmail={() => setGmailOpen(true)} now={now} />}
         {tab === "tx" && <Transactions state={state} onOpenTx={openTx} onAdd={() => setEditing("new")} />}
         {tab === "insight" && <Insights state={state} onOpenTx={openTx} />}
-        {tab === "settings" && <Settings state={state} dispatch={dispatch} sync={sync} onSetupGmail={() => setGmailOpen(true)} />}
+        {tab === "settings" && <Settings state={state} dispatch={dispatch} sync={sync} onSetupGmail={() => setGmailOpen(true)} onTutorial={() => { setTab("home"); dispatch({ type: "tour", done: false }); }} />}
       </main>
 
-      <nav className="tabbar" style={{ "--i": tabIndex } as React.CSSProperties}>
+      <nav className="tabbar" data-tour="nav" style={{ "--i": tabIndex } as React.CSSProperties}>
         <span className="tab-pill" aria-hidden="true" />
         {TABS.map((t) => (
           <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}>
@@ -122,13 +125,18 @@ export default function App() {
         ))}
       </nav>
 
-      {gmailOpen && <GmailSetup sync={sync} onClose={() => setGmailOpen(false)} />}
+      {state.onboarded && !state.tourDone && tab === "home" && !gmailOpen && (
+        <Tour banks={state.banks} connected={sync.mode === "gmail"} onDone={() => dispatch({ type: "tour", done: true })} />
+      )}
+
+      {gmailOpen && <GmailSetup sync={sync} banks={state.banks} onClose={() => setGmailOpen(false)} />}
 
       {editing && (
         <TxEditor
           tx={editing === "new" ? null : editing}
           banks={state.banks}
           onClose={() => setEditing(null)}
+          onViewEmail={(t) => setViewing(t)}
           onDelete={(id) => {
             dispatch({ type: "removeTx", id });
             setEditing(null);
@@ -140,6 +148,9 @@ export default function App() {
           }}
         />
       )}
+
+      {/* After the editor so it stacks on top of it. */}
+      {viewing && <EmailViewer tx={viewing} account={sync.account} onClose={() => setViewing(null)} />}
 
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
@@ -157,7 +168,7 @@ function TopBar({ streak, total, sync, onSetupGmail }: { streak: number; total: 
   const status = sync.mode !== "gmail" || sync.needsReconnect ? "off" : sync.status;
   const label = sync.mode !== "gmail" ? "Sambungkan Gmail" : sync.account && !sync.needsReconnect ? `Live: ${sync.account}` : sync.needsReconnect ? "Gmail terputus, tap untuk sambungkan" : sync.status === "syncing" ? "Membaca Gmail" : "Gmail live, tap untuk sync";
   return (
-    <header className="topbar">
+    <header className="topbar" data-tour="topbar">
       <LogoMark size={34} />
       <div className="topbar-stats">
         <span className="tstat orange" title="Hari tanpa jajan Hiburan"><ColorIcon name="flame" size={26} />{streak}</span>

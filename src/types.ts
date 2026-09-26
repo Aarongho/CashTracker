@@ -87,6 +87,8 @@ export interface Settings {
 
 export interface AppState {
   onboarded: boolean;
+  /** The first-run Kobi walkthrough has been finished or skipped. */
+  tourDone?: boolean;
   userName: string;
   banks: Bank[];
   transactions: Transaction[];

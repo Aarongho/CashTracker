@@ -6,6 +6,7 @@ import { formatIDR, formatShort } from "../lib/money";
 import { ANIM_LINE, Bubble, Mascot, type TapAnim } from "./Mascot";
 import { TxRow } from "./TxRow";
 import { ColorIcon } from "./icons";
+import { BrandBadge } from "./Brand";
 import { useCountUp } from "../useCountUp";
 import type { useSync } from "../useSync";
 
@@ -42,7 +43,7 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
 
   return (
     <div className="page">
-      <section className="hero">
+      <section className="hero" data-tour="kobi">
         <Mascot mood={mood} size={150} interactive onAnim={(a) => setTapLine({ a, at: Date.now() })} />
         <div className="hero-talk">
           <Bubble key={line}>{line}</Bubble>
@@ -50,7 +51,7 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
         </div>
       </section>
 
-      <section className={`banner ${banner.tone}`}>
+      <section className={`banner ${banner.tone}`} data-tour="banner">
         <div className="banner-text">
           <small>HIBURAN BULAN INI</small>
           <b>{banner.title}</b>
@@ -63,17 +64,17 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
       </section>
 
       {sync.mode === null && (
-        <section className="card connect">
+        <section className="card connect" data-tour="connect">
           <ColorIcon name="mail" size={44} />
           <div>
             <b>Sambungkan Gmail</b>
-            <p className="muted">Kobi baca email BCA, Apple, Gojek, Netflix… lalu mencatatnya otomatis.</p>
+            <p className="muted">Kobi baca email transaksi dari {state.banks.map((b) => b.name).join(", ") || "bank-mu"} lalu mencatatnya otomatis.</p>
           </div>
           <button className="btn wide" onClick={onSetupGmail}>Sambungkan Gmail</button>
         </section>
       )}
 
-      <section className="section">
+      <section className="section" data-tour="banks">
         <div className="section-head">
           <h2>Saldo kamu</h2>
         </div>
@@ -84,7 +85,7 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
         <div className="bank-grid stagger">
           {balances.map(({ bank, bal }, i) => (
             <div key={bank.id} className="tile" style={{ "--bank": bank.color, "--i": i } as React.CSSProperties}>
-              <span className="bank-badge">{bank.name.slice(0, 2).toUpperCase()}</span>
+              <BrandBadge name={bank.name} size={40} />
               <small>{bank.name}</small>
               <b className={bal < 0 ? "neg" : ""}>{formatShort(bal)}</b>
             </div>
@@ -102,7 +103,7 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section" data-tour="recent">
         <div className="section-head">
           <h2>Transaksi terbaru</h2>
           <button className="link" onClick={onSeeAll}>LIHAT SEMUA</button>

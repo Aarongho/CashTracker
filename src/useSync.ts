@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppState, EmailMessage, Transaction } from "./types";
 import type { Action } from "./store";
-import { gmailQuery, parseEmail } from "./lib/parsers";
+import { parseEmail } from "./lib/parsers";
+import { gmailQueryForAccounts } from "./lib/accounts";
 import { mergeParsed } from "./lib/ledger";
 import { disconnect, fetchNewMessages, fetchProfileEmail, getClientId, hasValidToken, requestToken, setClientId } from "./lib/gmail";
 
@@ -69,7 +70,9 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
       const s = stateRef.current;
       const earliestBank = Math.min(...s.banks.map((b) => Date.parse(b.setAt)), Date.now());
       const after = s.lastSyncAt ? Date.parse(s.lastSyncAt) - 2 * DAY : earliestBank - HISTORY_DAYS * DAY;
-      const emails = await fetchNewMessages(gmailQuery(Math.floor(after / 1000)), new Set(s.seenMessageIds));
+      // Only mail from the banks / e-wallets the user added.
+      const q = gmailQueryForAccounts(s.banks, Math.floor(after / 1000));
+      const emails = q ? await fetchNewMessages(q, new Set(s.seenMessageIds)) : [];
       ingest(emails);
       setError(null);
       setNeedsReconnect(false);

@@ -203,19 +203,31 @@ export async function fetchNewMessages(q: string, seen: Set<string>, max = 100):
   const out: EmailMessage[] = [];
   // Small batches keep us well under Gmail's per-user rate limit.
   for (let i = 0; i < ids.length && i < max; i += 10) {
-    const batch = await Promise.all(
-      ids.slice(i, i + 10).map((id) => api<{ id: string; internalDate: string; payload: Part }>(`/messages/${id}?format=full`)),
-    );
-    for (const m of batch) {
-      const h = (n: string) => m.payload.headers?.find((x) => x.name.toLowerCase() === n)?.value ?? "";
-      out.push({
-        id: m.id,
-        from: h("from"),
-        subject: h("subject"),
-        date: new Date(Number(m.internalDate)).toISOString(),
-        body: bodyText(m.payload),
-      });
-    }
+    out.push(...(await Promise.all(ids.slice(i, i + 10).map(fetchMessage))));
   }
   return out;
+}
+
+interface RawMessage {
+  id: string;
+  internalDate: string;
+  payload: Part;
+}
+
+/** One full message, e.g. to show the original email behind a transaction. */
+export async function fetchMessage(id: string): Promise<EmailMessage> {
+  const m = await api<RawMessage>(`/messages/${id}?format=full`);
+  const h = (n: string) => m.payload.headers?.find((x) => x.name.toLowerCase() === n)?.value ?? "";
+  return {
+    id: m.id,
+    from: h("from"),
+    subject: h("subject"),
+    date: new Date(Number(m.internalDate)).toISOString(),
+    body: bodyText(m.payload),
+  };
+}
+
+/** Link that opens the message in Gmail on the web. */
+export function gmailWebLink(id: string, account?: string | null): string {
+  return `https://mail.google.com/mail/${account ? `?authuser=${encodeURIComponent(account)}` : "u/0/"}#all/${id}`;
 }

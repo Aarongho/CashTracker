@@ -12,6 +12,7 @@ const RULES: [Category, string[]][] = [
       "apple arcade", "game", "games", "cgv", "xxi", "cinepolis", "bioskop", "cinema",
       "karaoke", "inul vizta", "happy puppy", "konser", "concert", "loket", "twitch",
       "joox", "timezone", "bar", "club", "holywings", "nonton", "tiket konser",
+      "apple.com", "itunes", "app store", "google play", "googleplay",
     ],
   ],
   [
@@ -57,7 +58,7 @@ const RULES: [Category, string[]][] = [
       "tokopedia", "shopee", "lazada", "blibli", "zalora", "tiktok shop", "uniqlo", "h&m",
       "zara", "indomaret", "alfamart", "alfamidi", "superindo", "hypermart", "transmart",
       "lotte mart", "supermarket", "ikea", "ace hardware", "informa", "miniso", "amazon",
-      "sociolla", "erafone", "ibox", "digimap", "app store",
+      "sociolla", "erafone", "ibox", "digimap",
     ],
   ],
   ["Transfer", ["transfer", "trf", "bi-fast", "bifast", "ke rekening", "top up", "topup"]],

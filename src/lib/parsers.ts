@@ -1,5 +1,6 @@
 import type { Category, Direction, EmailMessage } from "../types";
 import { parseAmount } from "./money";
+import { ACCOUNT_SOURCES } from "./accounts";
 
 export interface SourceDef {
   name: string;
@@ -66,6 +67,8 @@ export function gmailQuery(afterEpochSec: number): string {
 
 export interface ParsedTx {
   messageId: string;
+  /** Sender, used to decide which of the user's accounts this belongs to. */
+  from: string;
   /** For transfers: the person/account the money went to. */
   recipient?: string;
   subject?: string;
@@ -226,9 +229,16 @@ export function parseEmail(msg: EmailMessage): ParsedTx | null {
   const amount = extractAmount(msg.body) ?? extractAmount(msg.subject);
   if (!amount || amount < MIN_AMOUNT) return null;
 
+  const domain = (msg.from.match(/@([^>\s]+)/)?.[1] ?? "").toLowerCase();
+  const wallet = ACCOUNT_SOURCES.find((a) => a.kind === "ewallet" && a.domains.some((d) => domain === d || domain.endsWith(`.${d}`)));
+  // A GoFood/Shopee order paid in cash never touched the wallet.
+  if (wallet && /(metode pembayaran|payment method|dibayar (dengan|pakai|via))\s*[:\-]?\s*(tunai|cash)/i.test(msg.body)) return null;
+
   // "Kartu kredit" / "credit card" talk about the card type, not money coming in.
   const dirText = text.replace(/kartu kredit|credit card|kredit card/gi, "");
-  const direction: Direction = INCOMING.test(dirText) ? "in" : "out";
+  // For an e-wallet, a top up is money arriving in that wallet.
+  const walletTopUp = !!wallet && /(top ?up|isi saldo|tambah saldo)/i.test(text) && !/(top ?up|isi saldo) (ke|to) /i.test(text);
+  const direction: Direction = walletTopUp || INCOMING.test(dirText) ? "in" : "out";
 
   const isTransfer = /\btransfer\b|bi-?fast|\brtol\b|\bskn\b|kirim uang|send money/i.test(text);
   const recipient = direction === "out" && isTransfer ? extractRecipient(msg.body) : null;
@@ -237,15 +247,18 @@ export function parseEmail(msg: EmailMessage): ParsedTx | null {
   const senderName = msg.from.replace(/<.*>/, "").replace(/"/g, "").trim();
   return {
     messageId: msg.id,
+    from: msg.from,
     date: msg.date,
     amount,
     direction,
-    merchant: recipient ? `Transfer ke ${recipient}` : sender ? `Dari ${sender}` : extractMerchant(msg.body, msg.subject, src),
+    merchant: walletTopUp
+      ? `Top up ${wallet!.name.source.replace(/[^a-z]/gi, "")}`
+      : recipient ? `Transfer ke ${recipient}` : sender ? `Dari ${sender}` : extractMerchant(msg.body, msg.subject, src),
     recipient: recipient ?? undefined,
     subject: msg.subject.slice(0, 120),
     source: src?.name ?? (senderName || "Email"),
     sourceKind: src?.kind ?? "merchant",
-    hint: direction === "in" ? "Pemasukan" : recipient ? "Transfer" : src?.hint ?? null,
+    hint: walletTopUp || recipient ? "Transfer" : direction === "in" ? "Pemasukan" : src?.hint ?? null,
     body: msg.body,
   };
 }

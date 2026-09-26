@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppState, Bank } from "../types";
 import type { Action } from "../store";
-import { SOURCES } from "../lib/parsers";
 import { bankBalance } from "../lib/ledger";
 import { formatIDR } from "../lib/money";
 import { BankForm, MoneyInput } from "./BankForm";
@@ -22,10 +21,9 @@ function ConfirmButton({ label, confirmLabel, onConfirm, className }: { label: s
   );
 }
 
-export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppState; dispatch: React.Dispatch<Action>; sync: ReturnType<typeof useSync>; onSetupGmail: () => void }) {
+export function Settings({ state, dispatch, sync, onSetupGmail, onTutorial }: { state: AppState; dispatch: React.Dispatch<Action>; sync: ReturnType<typeof useSync>; onSetupGmail: () => void; onTutorial: () => void }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ bank: Bank; balance: number } | null>(null);
-  const merchantSources = SOURCES.filter((s) => s.kind === "merchant");
 
   return (
     <div className="page">
@@ -72,22 +70,6 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
         <small className="muted">Kobi mulai khawatir di 80%, marah di 100%, ngamuk di 150%.</small>
       </section>
 
-      <section className="card">
-        <h3>💳 Sumber dana per merchant</h3>
-        <small className="muted">Struk Apple, Netflix, Gojek, dll. dipotong dari bank mana? (Notif bank sendiri otomatis masuk ke bank itu, dan struk yang sama nominalnya digabung biar tidak dobel.)</small>
-        {merchantSources.map((s) => (
-          <label key={s.name} className="field">
-            <span>{s.name}</span>
-            <select
-              value={state.settings.sourceBank[s.name] ?? ""}
-              onChange={(e) => dispatch({ type: "settings", patch: { sourceBank: { ...state.settings.sourceBank, [s.name]: e.target.value } } })}
-            >
-              <option value="">Default ({state.banks[0]?.name ?? "—"})</option>
-              {state.banks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
-          </label>
-        ))}
-      </section>
 
       <section className="card">
         <h3>📬 Gmail</h3>
@@ -100,10 +82,8 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
             {[30, 60, 120, 300].map((s) => <option key={s} value={s}>{s < 60 ? `${s} detik` : `${s / 60} menit`}</option>)}
           </select>
         </label>
-        {sync.clientId && <small className="muted mono">Client ID: {sync.clientId.slice(0, 14)}…</small>}
         <div className="row">
-          {sync.mode !== "gmail" && <button className="btn" onClick={onSetupGmail}>{sync.hasClientId ? "Sambungkan Gmail" : "Setup Gmail"}</button>}
-          {sync.mode === "gmail" && <button className="btn ghost" onClick={onSetupGmail}>Ganti Client ID</button>}
+          {sync.mode !== "gmail" && <button className="btn" onClick={onSetupGmail}>Sambungkan Gmail</button>}
           {sync.mode !== null && <button className="btn ghost" onClick={sync.stop}>Putuskan</button>}
         </div>
       </section>
@@ -113,6 +93,8 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
         <p className="muted">Semua data disimpan di browser ini saja.</p>
         <ConfirmButton className="btn danger" label="Reset semua data" confirmLabel="Yakin? Tap lagi untuk hapus semua" onConfirm={() => { sync.stop(); dispatch({ type: "reset" }); }} />
       </section>
+      <button className="btn secondary wide" onClick={onTutorial}>🐷 Lihat tutorial Kobi lagi</button>
+
       <p className="legal">
         <a href="privacy.html" target="_blank" rel="noreferrer">Kebijakan Privasi</a> · <a href="terms.html" target="_blank" rel="noreferrer">Ketentuan Layanan</a>
       </p>

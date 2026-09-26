@@ -10,7 +10,7 @@ Track your spending **live from Gmail**: bank notifications (BCA, Mandiri, BNI, 
 ## How it works
 
 1. **Onboarding**: enter your name, add each bank/e-wallet, and type its **current balance**. Then set a monthly Hiburan budget.
-2. **Connect Gmail** (read-only). The app searches only for mail from known banks/merchants or receipt-like subjects, parses the amount/merchant, and **checks every 60 seconds** (configurable) while the tab is open.
+2. **Connect Gmail** (read-only). Kobi only reads mail **from the banks and e-wallets you added** (e.g. only `@bca.co.id` if you only added BCA), and each email is booked on the account that sent it: a BCA email moves the BCA balance, a Gojek/GoPay email moves GoPay (top up = in, payment = out). Your bank/e-wallet must be set to send an email notification for every transaction. The app searches only for mail from known banks/merchants or receipt-like subjects, parses the amount/merchant, and **checks every 60 seconds** (configurable) while the tab is open.
 3. **Balance per bank** = the balance you typed in − spending + income *after* that moment. Older emails still show up in insights but don't change the balance. You can reset a bank's balance any time in **Atur**.
 4. **No double-counting**: an Apple/Netflix receipt and the matching BCA notification (same amount, within 3 days) are merged into one transaction. It keeps the bank from the notification and the name/category from the receipt.
 5. **Categories**: Makanan, Transportasi, Belanja, Hiburan, Tagihan, Kesehatan, Transfer, Pemasukan, Lainnya. Categories are keyword-based. If you fix one by hand, you can tell it to "always categorize this merchant as X".
