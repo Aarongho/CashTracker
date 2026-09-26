@@ -4,9 +4,8 @@ import type { Action } from "./store";
 import { gmailQuery, parseEmail } from "./lib/parsers";
 import { mergeParsed } from "./lib/ledger";
 import { disconnect, fetchNewMessages, getClientId, hasValidToken, requestToken, setClientId } from "./lib/gmail";
-import { demoInbox, randomLiveEmail } from "./lib/demo";
 
-export type SyncMode = "gmail" | "demo" | null;
+export type SyncMode = "gmail" | null;
 export type SyncStatus = "idle" | "syncing" | "error";
 
 const MODE_KEY = "cashtracker:mode";
@@ -15,7 +14,8 @@ const DAY = 86_400_000;
 
 function readMode(): SyncMode {
   try {
-    return (localStorage.getItem(MODE_KEY) as SyncMode) ?? null;
+    // Older versions had a "demo" mode; anything but "gmail" now means not connected.
+    return localStorage.getItem(MODE_KEY) === "gmail" ? "gmail" : null;
   } catch {
     return null;
   }
@@ -87,13 +87,6 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     return true;
   }, [syncGmail]);
 
-  const startDemo = useCallback(() => {
-    setMode("demo");
-    ingest(demoInbox());
-  }, [ingest]);
-
-  const simulateEmail = useCallback(() => ingest([randomLiveEmail()]), [ingest]);
-
   const saveClientId = useCallback((id: string) => {
     setClientId(id);
     setClientIdState(getClientId());
@@ -133,8 +126,6 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     saveClientId,
     connectGmail,
     syncGmail,
-    startDemo,
-    simulateEmail,
     stop,
   };
 }

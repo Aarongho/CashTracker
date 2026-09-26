@@ -89,9 +89,6 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
         <div className="card stat"><small className="muted">Masuk bulan ini</small><b className="pos">{formatIDR(stats.income)}</b></div>
       </section>
 
-      {sync.mode === "demo" && (
-        <button className="btn ghost wide" onClick={sync.simulateEmail}><Icon name="mail" size={18} /> Simulasi email masuk</button>
-      )}
       {sync.mode === null && (
         <section className="card connect">
           <span className="connect-icon"><Icon name="mail" size={26} /></span>
@@ -100,8 +97,7 @@ export function Home({ state, sync, onOpenTx, onSeeAll, onSetupGmail, now }: {
             <p className="muted">Kobi baca email BCA, Apple, Gojek, Netflix… dan catat otomatis.</p>
           </div>
           <div className="row">
-            <button className="btn" onClick={onSetupGmail}>Sambungkan</button>
-            <button className="btn ghost" onClick={sync.startDemo}>Coba demo</button>
+            <button className="btn" onClick={onSetupGmail}>Sambungkan Gmail</button>
           </div>
         </section>
       )}
@@ -138,9 +134,6 @@ function SyncButton({ sync, lastSyncAt, now, onSetup }: { sync: Sync; lastSyncAt
         <Icon name="refresh" size={15} />
       </button>
     );
-  }
-  if (sync.mode === "demo") {
-    return <span className="sync-chip demo"><span className="live-dot" />Demo</span>;
   }
   return (
     <button className="sync-chip off" onClick={onSetup}><Icon name="mail" size={15} /> Gmail</button>

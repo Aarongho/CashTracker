@@ -92,7 +92,7 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
       <section className="card">
         <h3>📬 Gmail</h3>
         <p className="muted">
-          {sync.mode === "gmail" ? "Tersambung (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun." : sync.mode === "demo" ? "Sedang mode demo." : "Belum tersambung."}
+          {sync.mode === "gmail" ? "Tersambung (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun." : "Belum tersambung."}
         </p>
         <label className="field">
           <span>Cek email tiap</span>
@@ -104,7 +104,7 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
         <div className="row">
           {sync.mode !== "gmail" && <button className="btn" onClick={onSetupGmail}>{sync.hasClientId ? "Sambungkan Gmail" : "Setup Gmail"}</button>}
           {sync.mode === "gmail" && <button className="btn ghost" onClick={onSetupGmail}>Ganti Client ID</button>}
-          {sync.mode !== null && <button className="btn ghost" onClick={sync.stop}>{sync.mode === "demo" ? "Keluar demo" : "Putuskan"}</button>}
+          {sync.mode !== null && <button className="btn ghost" onClick={sync.stop}>Putuskan</button>}
         </div>
       </section>
 

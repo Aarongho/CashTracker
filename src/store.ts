@@ -75,7 +75,15 @@ function load(): AppState {
     const raw = localStorage.getItem(KEY);
     if (!raw) return initialState;
     const s = JSON.parse(raw) as AppState;
-    return { ...initialState, ...s, settings: { ...initialState.settings, ...s.settings } };
+    // Drop sample data left over from the old demo mode.
+    const isDemo = (id?: string) => !!id && /^(demo|live)-/.test(id);
+    return {
+      ...initialState,
+      ...s,
+      transactions: (s.transactions ?? []).filter((t) => !isDemo(t.messageId)),
+      seenMessageIds: (s.seenMessageIds ?? []).filter((id) => !isDemo(id)),
+      settings: { ...initialState.settings, ...s.settings },
+    };
   } catch {
     return initialState;
   }

@@ -38,25 +38,26 @@ cp .env.example .env   # add your Google OAuth client ID (see below)
 npm run dev            # http://localhost:5173
 ```
 
-Don't want to set up Google yet? Tap **Coba demo** on the home screen. It loads a sample inbox, and **✉️ Simulasi email masuk** fakes new emails arriving live.
-
 ```bash
 npm test          # parser / ledger / mood unit tests
 npm run build     # typecheck + production build in dist/
 ```
 
-## Live site
+## Deploy (Cloudflare Pages)
 
-Pushing to `main` deploys to GitHub Pages at **https://aarongho.github.io/cashtracker/** (enable it once: Settings → Pages → Source: GitHub Actions).
+1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick `Aarongho/cashtracker`.
+2. Framework preset: **None**. Build command: `npm run build`. Build output directory: `dist`.
+3. Save and deploy. Every push to `main` redeploys to `https://<project>.pages.dev`.
+4. Add that exact `https://<project>.pages.dev` origin to the OAuth client's **Authorized JavaScript origins** in Google Cloud.
 
 ## Google setup (for real Gmail)
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the **Gmail API**.
 2. **OAuth consent screen**: set it to External, add the scope `.../auth/gmail.readonly`, and add your own Gmail address under **Test users**.
 3. **Credentials → Create OAuth client ID → Web application**. Add `http://localhost:5173` (and your deployed URL, if any) to **Authorized JavaScript origins**.
-4. In the app, tap **Sambungkan Gmail**, paste the client ID, and log in. It's saved in your browser. (Alternatively, bake it in at build time with `VITE_GOOGLE_CLIENT_ID` in `.env`, or as a repo secret for the GitHub Pages build.)
+4. The hosted app has its client ID built in (`DEFAULT_CLIENT_ID` in `src/lib/gmail.ts`); for your own deployment, tap **Sambungkan Gmail → Pakai Google Client ID sendiri**, paste yours, and log in. It's saved in your browser. (Alternatively, bake it in at build time with `VITE_GOOGLE_CLIENT_ID` in `.env`, or as a repo secret for the GitHub Pages build.)
 
-> `gmail.readonly` is a *restricted* scope. In "Testing" mode it works for up to 100 test users you list. Publishing publicly requires Google's verification and security assessment.
+> `gmail.readonly` is a *restricted* scope. In **Testing** mode only the Gmail accounts listed under *Test users* can sign in (anyone else gets `Error 403: access_denied`). Switching the app to **In production** without verification lets anyone sign in after a "Google hasn't verified this app" warning, capped at 100 users. Going beyond that needs Google's verification and a security assessment.
 
 The access token expires after about 1 hour, and browsers block silent re-login popups. When that happens the status bar shows **Sambungkan lagi**, and one tap reconnects.
 
@@ -69,9 +70,9 @@ src/
   lib/ledger.ts      merge/dedupe, per-bank balances, monthly stats
   lib/mood.ts        Kobi's mood + lines
   lib/gmail.ts       Google Identity Services token + Gmail REST calls
-  lib/demo.ts        sample inbox for demo mode
+  lib/demo.ts        sample emails used by the tests
   components/        Mascot (SVG Kobi), Onboarding, Home, Transactions, Insights, Settings
-  useSync.ts         live polling / demo mode
+  useSync.ts         Gmail connection + live polling
   store.ts           reducer + localStorage persistence
 ```
 
