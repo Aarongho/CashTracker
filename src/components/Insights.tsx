@@ -1,143 +1,287 @@
 import { useMemo, useState } from "react";
-import type { AppState, Category } from "../types";
+import type { AppState, Category, Transaction } from "../types";
 import { CATEGORY_META } from "../types";
-import { monthKey, monthStats } from "../lib/ledger";
 import { formatIDR, formatShort } from "../lib/money";
-import { emailSource, monogram, sourceColor } from "../lib/brand";
+import { emailSource } from "../lib/brand";
+import { inPeriod, isSpend, makePeriod, monthPeriod, periodDays, summarize, type Period } from "../lib/period";
 import { ColorIcon } from "./icons";
+import { BrandBadge } from "./Brand";
+import { PeriodPicker, SourceFilter } from "./Filters";
+import { TxRow } from "./TxRow";
 
-export function Insights({ state }: { state: AppState }) {
-  const months = useMemo(() => {
-    const set = new Set([monthKey(new Date()), ...state.transactions.map((t) => monthKey(t.date))]);
-    return [...set].sort().reverse();
-  }, [state.transactions]);
-  const [month, setMonth] = useState(months[0]);
-  const [hover, setHover] = useState<number | null>(null);
-  const stats = monthStats(state.transactions, month);
+const WEEKDAYS = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
-  const cats = (Object.entries(stats.byCategory) as [Category, number][]).sort((a, b) => b[1] - a[1]);
-  const maxCat = cats[0]?.[1] ?? 1;
-  const maxDay = Math.max(...stats.byDay, 1);
-
-  const merchants = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const t of state.transactions) {
-      if (t.direction !== "out" || t.category === "Transfer" || monthKey(t.date) !== month) continue;
-      m.set(t.merchant, (m.get(t.merchant) ?? 0) + t.amount);
-    }
-    return [...m].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [state.transactions, month]);
+export function Insights({ state, onOpenTx }: { state: AppState; onOpenTx: (t: Transaction) => void }) {
+  const [period, setPeriod] = useState<Period>(() => makePeriod("month"));
+  const [source, setSource] = useState<string | null>(null);
+  const [day, setDay] = useState<Date | null>(null);
 
   const sources = useMemo(() => {
     const m = new Map<string, number>();
-    for (const t of state.transactions) {
-      if (t.direction !== "out" || t.category === "Transfer" || monthKey(t.date) !== month) continue;
-      const k = emailSource(t);
-      m.set(k, (m.get(k) ?? 0) + t.amount);
-    }
+    for (const t of state.transactions) if (isSpend(t)) m.set(emailSource(t), (m.get(emailSource(t)) ?? 0) + t.amount);
+    return [...m].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }, [state.transactions]);
+
+  // Everything below respects the source filter; most also respect the period.
+  const bySource = useMemo(() => state.transactions.filter((t) => !source || emailSource(t) === source), [state.transactions, source]);
+  const txs = useMemo(() => bySource.filter((t) => inPeriod(t, period)), [bySource, period]);
+  const sum = summarize(txs);
+  const perDay = sum.spent / periodDays(period, txs);
+
+  const spendByDay = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of txs) if (isSpend(t)) m.set(dayKey(new Date(t.date)), (m.get(dayKey(new Date(t.date))) ?? 0) + t.amount);
+    return m;
+  }, [txs]);
+
+  const cats = (Object.entries(sum.byCategory) as [Category, number][]).sort((a, b) => b[1] - a[1]);
+  const srcTotals = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of state.transactions) if (isSpend(t) && inPeriod(t, period)) m.set(emailSource(t), (m.get(emailSource(t)) ?? 0) + t.amount);
     return [...m].sort((a, b) => b[1] - a[1]);
-  }, [state.transactions, month]);
-  const maxSrc = sources[0]?.[1] ?? 1;
+  }, [state.transactions, period]);
+  const merchants = useMemo(() => {
+    const m = new Map<string, { total: number; t: Transaction }>();
+    for (const t of txs) if (isSpend(t)) m.set(t.merchant, { total: (m.get(t.merchant)?.total ?? 0) + t.amount, t });
+    return [...m].sort((a, b) => b[1].total - a[1].total).slice(0, 5);
+  }, [txs]);
+  const weekday = useMemo(() => {
+    const w = Array<number>(7).fill(0);
+    for (const t of txs) if (isSpend(t)) w[(new Date(t.date).getDay() + 6) % 7] += t.amount;
+    return w;
+  }, [txs]);
+  const months = useMemo(() => {
+    // Last 12 months up to now, for the source filter (not limited by the period).
+    const now = new Date();
+    const list = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      return { y: d.getFullYear(), m: d.getMonth(), total: 0 };
+    });
+    for (const t of bySource) {
+      if (!isSpend(t)) continue;
+      const d = new Date(t.date);
+      const hit = list.find((x) => x.y === d.getFullYear() && x.m === d.getMonth());
+      if (hit) hit.total += t.amount;
+    }
+    const first = list.findIndex((x) => x.total > 0);
+    return first === -1 ? list.slice(-6) : list.slice(Math.min(first, 6));
+  }, [bySource]);
 
-  const label = (k: string) => {
-    const [y, m] = k.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-  };
-
-  // Daily chart geometry
-  const W = 320;
-  const H = 120;
-  const n = stats.byDay.length;
-  const slot = W / n;
-  const barW = Math.max(slot - 2, 2);
+  const dayTxs = day ? txs.filter((t) => dayKey(new Date(t.date)) === dayKey(day)) : [];
 
   return (
     <div className="page">
       <header className="page-head">
         <h1>Insight</h1>
-        <p className="muted">Ke mana uangmu pergi bulan ini</p>
+        <p className="muted">Ke mana uangmu pergi, kapan, dan lewat apa.</p>
       </header>
-      <div className="chips scroll">
-        {months.map((m) => (
-          <button key={m} className={`chip ${month === m ? "on" : ""}`} onClick={() => setMonth(m)}>{label(m)}</button>
-        ))}
-      </div>
+
+      <PeriodPicker value={period} onChange={(p) => { setPeriod(p); setDay(null); }} />
+      <SourceFilter sources={sources} value={source} onChange={(s) => { setSource(s); setDay(null); }} />
+
+      {source && (
+        <div className="source-hero">
+          <BrandBadge name={source} size={52} />
+          <div>
+            <small className="muted">Khusus dari</small>
+            <h2>{source}</h2>
+          </div>
+        </div>
+      )}
 
       <section className="stat-grid stagger">
-        <div className="tile stat" style={{ "--i": 0 } as React.CSSProperties}>
-          <ColorIcon name="down" size={30} />
-          <div><b>{formatShort(stats.spent)}</b><small>Pengeluaran</small></div>
+        <Tile i={0} icon="down" value={formatShort(sum.spent)} label="Pengeluaran" />
+        <Tile i={1} icon="up" value={formatShort(sum.income)} label="Pemasukan" />
+        <Tile i={2} icon="flame" value={formatShort(perDay)} label="Rata-rata / hari" />
+        <Tile i={3} icon="receipt" value={`${sum.count}`} label="Transaksi" />
+      </section>
+
+      <Calendar period={period} spendByDay={spendByDay} selected={day} onSelect={setDay} />
+
+      {day && (
+        <section className="card list day-list">
+          <div className="day-list-head">
+            <b>{day.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" })}</b>
+            <span className="money">{formatIDR(spendByDay.get(dayKey(day)) ?? 0)}</span>
+          </div>
+          {dayTxs.length === 0 && <p className="muted empty">Tidak ada pengeluaran hari ini. Kobi bangga! 🐷</p>}
+          {dayTxs.map((t, i) => <TxRow key={t.id} tx={t} banks={state.banks} onClick={() => onOpenTx(t)} showDate={false} index={i} />)}
+        </section>
+      )}
+
+      <section className="card">
+        <div className="row between">
+          <h3>Per bulan</h3>
+          <small className="muted">tap bulan untuk lihat detailnya</small>
         </div>
-        <div className="tile stat" style={{ "--i": 1 } as React.CSSProperties}>
-          <ColorIcon name="up" size={30} />
-          <div><b>{formatShort(stats.income)}</b><small>Pemasukan</small></div>
-        </div>
+        <MonthBars months={months} period={period} onPick={(y, m) => { setPeriod(monthPeriod(y, m)); setDay(null); }} />
+      </section>
+
+      <section className="card">
+        <h3>Per hari dalam seminggu</h3>
+        <WeekdayBars values={weekday} />
       </section>
 
       <section className="card">
         <h3>Per kategori</h3>
-        {cats.length === 0 && <p className="muted">Belum ada pengeluaran bulan ini.</p>}
+        {cats.length === 0 && <p className="muted">Belum ada pengeluaran di periode ini.</p>}
         <div className="cat-bars">
           {cats.map(([c, v]) => (
             <div key={c} className="cat-bar">
               <span className="cat-label">{CATEGORY_META[c].emoji} {c}</span>
-              <span className="cat-track">
-                <span className={`cat-fill ${c === "Hiburan" ? "hot" : ""}`} style={{ width: `${(v / maxCat) * 100}%` }} />
-              </span>
-              <span className="cat-val">{formatShort(v)} <small className="muted">{Math.round((v / stats.spent) * 100)}%</small></span>
+              <span className="cat-track"><span className={`cat-fill ${c === "Hiburan" ? "hot" : ""}`} style={{ width: `${(v / cats[0][1]) * 100}%` }} /></span>
+              <span className="cat-val">{formatShort(v)} <small className="muted">{Math.round((v / sum.spent) * 100)}%</small></span>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="card">
-        <h3>Per sumber email</h3>
-        {sources.length === 0 && <p className="muted">—</p>}
-        <div className="cat-bars">
-          {sources.map(([src, v]) => (
-            <div key={src} className="cat-bar">
-              <span className="cat-label"><span className="mini-badge" style={{ background: sourceColor(src) }}>{monogram(src)}</span>{src}</span>
-              <span className="cat-track"><span className="cat-fill" style={{ width: `${(v / maxSrc) * 100}%` }} /></span>
-              <span className="cat-val">{formatShort(v)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      {!source && (
+        <section className="card">
+          <div className="row between">
+            <h3>Per sumber email</h3>
+            <small className="muted">tap untuk filter</small>
+          </div>
+          {srcTotals.length === 0 && <p className="muted">—</p>}
+          <div className="cat-bars">
+            {srcTotals.map(([s, v]) => (
+              <button key={s} className="cat-bar as-button" onClick={() => setSource(s)}>
+                <span className="cat-label"><BrandBadge name={s} size={26} />{s}</span>
+                <span className="cat-track"><span className="cat-fill" style={{ width: `${(v / srcTotals[0][1]) * 100}%` }} /></span>
+                <span className="cat-val">{formatShort(v)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-      <section className="card">
-        <div className="row between">
-          <h3>Pengeluaran harian</h3>
-          <small className="muted">
-            {hover !== null ? `${hover + 1} ${label(month).split(" ")[0]} · ${formatIDR(stats.byDay[hover])}` : `puncak ${formatShort(maxDay)}`}
-          </small>
-        </div>
-        <svg className="day-chart" viewBox={`0 0 ${W} ${H + 16}`} onMouseLeave={() => setHover(null)} role="img" aria-label="Grafik pengeluaran harian">
-          <line x1="0" x2={W} y1={H} y2={H} className="axis" />
-          {stats.byDay.map((v, i) => {
-            const h = v ? Math.max((v / maxDay) * (H - 6), 3) : 0;
-            return (
-              <g key={i} onMouseEnter={() => setHover(i)} onClick={() => setHover(i)}>
-                <rect x={i * slot} y="0" width={slot} height={H} fill="transparent" />
-                {h > 0 && <rect x={i * slot + 1} y={H - h} width={barW} height={h} rx={Math.min(3, barW / 2)} className={`day-bar ${hover === i ? "on" : ""}`} />}
-              </g>
-            );
-          })}
-          {[1, 10, 20, n].map((d) => (
-            <text key={d} x={(d - 0.5) * slot} y={H + 13} textAnchor="middle" className="tick">{d}</text>
-          ))}
-        </svg>
-      </section>
-
-      <section className="card">
-        <h3>Top merchant</h3>
-        {merchants.map(([m, v], i) => (
-          <div key={m} className="row between merchant-row">
-            <span className="ellipsis"><span className="rank">{i + 1}</span>{m}</span>
-            <b>{formatIDR(v)}</b>
+      <section className="card list">
+        <h3 className="list-title">Top merchant</h3>
+        {merchants.length === 0 && <p className="muted empty">—</p>}
+        {merchants.map(([m, { total, t }], i) => (
+          <div key={m} className="merchant-row">
+            <span className={`rank r${i + 1}`}>{i + 1}</span>
+            <BrandBadge name={m} alt={emailSource(t)} size={36} fallback={CATEGORY_META[t.category].emoji} />
+            <b className="ellipsis grow">{m}</b>
+            <b className="money">{formatIDR(total)}</b>
           </div>
         ))}
-        {merchants.length === 0 && <p className="muted">—</p>}
       </section>
     </div>
+  );
+}
+
+function Tile({ icon, value, label, i }: { icon: "down" | "up" | "flame" | "receipt"; value: string; label: string; i: number }) {
+  return (
+    <div className="tile stat" style={{ "--i": i } as React.CSSProperties}>
+      <ColorIcon name={icon} size={30} />
+      <div><b>{value}</b><small>{label}</small></div>
+    </div>
+  );
+}
+
+/** Duolingo streak-calendar style month grid; darker = more spending. */
+function Calendar({ period, spendByDay, selected, onSelect }: { period: Period; spendByDay: Map<string, number>; selected: Date | null; onSelect: (d: Date | null) => void }) {
+  const last = period.to ? new Date(period.to.getTime() - 1) : new Date();
+  const [cursor, setCursor] = useState(() => new Date(Math.min(last.getTime(), Date.now())));
+  // Keep the shown month inside the period when the period changes.
+  const periodKey = `${period.from?.getTime()}-${period.to?.getTime()}`;
+  const [seenKey, setSeenKey] = useState(periodKey);
+  if (seenKey !== periodKey) {
+    setSeenKey(periodKey);
+    setCursor(new Date(Math.min(last.getTime(), Date.now())));
+  }
+
+  const y = cursor.getFullYear();
+  const m = cursor.getMonth();
+  const first = new Date(y, m, 1);
+  const days = new Date(y, m + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7;
+  const max = Math.max(1, ...spendByDay.values());
+  const today = dayKey(new Date());
+  const canPrev = !period.from || new Date(y, m, 1) > period.from;
+  const canNext = new Date(y, m + 1, 1) <= new Date() && (!period.to || new Date(y, m + 1, 1) < period.to);
+  const monthTotal = [...Array(days)].reduce((s, _, i) => s + (spendByDay.get(dayKey(new Date(y, m, i + 1))) ?? 0), 0);
+
+  return (
+    <section className="card calendar">
+      <div className="cal-head">
+        <button className="round-btn" aria-label="Bulan sebelumnya" disabled={!canPrev} onClick={() => setCursor(new Date(y, m - 1, 1))}>‹</button>
+        <div className="cal-title">
+          <b>{first.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</b>
+          <small className="muted">{formatIDR(monthTotal)}</small>
+        </div>
+        <button className="round-btn" aria-label="Bulan berikutnya" disabled={!canNext} onClick={() => setCursor(new Date(y, m + 1, 1))}>›</button>
+      </div>
+      <div className="cal-grid">
+        {WEEKDAYS.map((w) => <span key={w} className="cal-wd">{w}</span>)}
+        {Array.from({ length: lead }, (_, i) => <span key={`l${i}`} />)}
+        {Array.from({ length: days }, (_, i) => {
+          const d = new Date(y, m, i + 1);
+          const k = dayKey(d);
+          const v = spendByDay.get(k) ?? 0;
+          const level = v === 0 ? 0 : Math.min(4, Math.ceil((v / max) * 4));
+          const inside = (!period.from || d >= period.from) && (!period.to || d < period.to) && d <= new Date();
+          const isSel = selected && dayKey(selected) === k;
+          return (
+            <button
+              key={k}
+              className={`cal-day l${level}${k === today ? " today" : ""}${isSel ? " sel" : ""}${inside ? "" : " out"}`}
+              disabled={!inside}
+              onClick={() => onSelect(isSel ? null : d)}
+              aria-label={`${d.toLocaleDateString("id-ID", { day: "numeric", month: "long" })}: ${formatIDR(v)}`}
+              title={formatIDR(v)}
+            >
+              {i + 1}
+            </button>
+          );
+        })}
+      </div>
+      <div className="cal-legend">
+        <small className="muted">Sedikit</small>
+        {[0, 1, 2, 3, 4].map((l) => <span key={l} className={`cal-swatch l${l}`} />)}
+        <small className="muted">Banyak</small>
+      </div>
+    </section>
+  );
+}
+
+function MonthBars({ months, period, onPick }: { months: { y: number; m: number; total: number }[]; period: Period; onPick: (y: number, m: number) => void }) {
+  const max = Math.max(1, ...months.map((x) => x.total));
+  const [hover, setHover] = useState<number | null>(null);
+  return (
+    <div className="vbars" onMouseLeave={() => setHover(null)}>
+      {months.map((x, i) => {
+        const start = new Date(x.y, x.m, 1);
+        const active = (!period.from || start >= new Date(period.from.getFullYear(), period.from.getMonth(), 1)) && (!period.to || start < period.to);
+        return (
+          <button key={`${x.y}-${x.m}`} className={`vbar ${active ? "on" : ""}`} onClick={() => onPick(x.y, x.m)} onMouseEnter={() => setHover(i)} aria-label={`${start.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}: ${formatIDR(x.total)}`}>
+            <span className="vbar-val">{hover === i || (active && months.length <= 6) ? formatShort(x.total) : ""}</span>
+            <span className="vbar-track"><span className="vbar-fill" style={{ height: `${(x.total / max) * 100}%` }} /></span>
+            <small>{start.toLocaleDateString("id-ID", { month: "short" })}</small>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeekdayBars({ values }: { values: number[] }) {
+  const max = Math.max(1, ...values);
+  const top = values.indexOf(Math.max(...values));
+  return (
+    <>
+      <div className="vbars week">
+        {values.map((v, i) => (
+          <div key={i} className={`vbar ${i === top && v > 0 ? "on" : ""}`} title={formatIDR(v)}>
+            <span className="vbar-val">{i === top && v > 0 ? formatShort(v) : ""}</span>
+            <span className="vbar-track"><span className="vbar-fill" style={{ height: `${(v / max) * 100}%` }} /></span>
+            <small>{WEEKDAYS[i]}</small>
+          </div>
+        ))}
+      </div>
+      {values[top] > 0 && <p className="muted">Kamu paling boros hari <b className="ink">{["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"][top]}</b>.</p>}
+    </>
   );
 }

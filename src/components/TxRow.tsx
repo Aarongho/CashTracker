@@ -1,6 +1,7 @@
 import type { Bank, Transaction } from "../types";
 import { CATEGORY_META } from "../types";
 import { formatIDR } from "../lib/money";
+import { BrandBadge } from "./Brand";
 
 export function TxRow({ tx, banks, onClick, showDate = true, index = 0 }: { tx: Transaction; banks: Bank[]; onClick?: () => void; showDate?: boolean; index?: number }) {
   const meta = CATEGORY_META[tx.category];
@@ -11,7 +12,7 @@ export function TxRow({ tx, banks, onClick, showDate = true, index = 0 }: { tx: 
   const meta2 = [via ?? bank?.name ?? "—", via && !tx.mergedFrom?.length ? bank?.name : null, when].filter(Boolean).join(" · ");
   return (
     <button className="tx-row" onClick={onClick} style={{ "--i": index } as React.CSSProperties}>
-      <span className="tx-icon" style={{ "--cat": meta.color } as React.CSSProperties}>{meta.emoji}</span>
+      <BrandBadge name={tx.merchant} alt={tx.mergedFrom?.[0] ?? tx.source} fallback={<span className="tx-icon" style={{ "--cat": meta.color } as React.CSSProperties}>{meta.emoji}</span>} />
       <span className="tx-main">
         <b>{tx.merchant}</b>
         <small>{meta2}</small>

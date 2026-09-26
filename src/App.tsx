@@ -12,6 +12,7 @@ import { Mascot } from "./components/Mascot";
 import { GmailSetup } from "./components/GmailSetup";
 import { ColorIcon, type ColorIconName } from "./components/icons";
 import { LogoMark } from "./components/Logo";
+import { preloadGis } from "./lib/gmail";
 import { formatIDR, formatShort } from "./lib/money";
 import { bankBalance, hematStreak } from "./lib/ledger";
 
@@ -45,6 +46,8 @@ export default function App() {
   const [editing, setEditing] = useState<Transaction | null | "new">(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [now, setNow] = useState(Date.now());
+
+  useEffect(() => preloadGis(), []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 5000);
@@ -82,7 +85,11 @@ export default function App() {
   if (!state.onboarded) {
     return (
       <Onboarding
-        onDone={(userName, banks, hiburanBudget) => dispatch({ type: "finishOnboarding", userName, banks, hiburanBudget })}
+        onDone={(userName, banks, hiburanBudget, connect) => {
+          dispatch({ type: "finishOnboarding", userName, banks, hiburanBudget });
+          // Called inside the tap so the Google popup isn't blocked.
+          if (connect) void sync.connectGmail().then((ok) => !ok && setGmailOpen(true));
+        }}
       />
     );
   }
@@ -101,7 +108,7 @@ export default function App() {
       <main key={tab} className={`view enter-${dir}`}>
         {tab === "home" && <Home state={state} sync={sync} onOpenTx={openTx} onSeeAll={() => setTab("tx")} onSetupGmail={() => setGmailOpen(true)} now={now} />}
         {tab === "tx" && <Transactions state={state} onOpenTx={openTx} onAdd={() => setEditing("new")} />}
-        {tab === "insight" && <Insights state={state} />}
+        {tab === "insight" && <Insights state={state} onOpenTx={openTx} />}
         {tab === "settings" && <Settings state={state} dispatch={dispatch} sync={sync} onSetupGmail={() => setGmailOpen(true)} />}
       </main>
 
@@ -148,7 +155,7 @@ export default function App() {
 
 function TopBar({ streak, total, sync, onSetupGmail }: { streak: number; total: number; sync: ReturnType<typeof useSync>; onSetupGmail: () => void }) {
   const status = sync.mode !== "gmail" || sync.needsReconnect ? "off" : sync.status;
-  const label = sync.mode !== "gmail" ? "Sambungkan Gmail" : sync.needsReconnect ? "Gmail terputus, tap untuk sambungkan" : sync.status === "syncing" ? "Membaca Gmail" : "Gmail live, tap untuk sync";
+  const label = sync.mode !== "gmail" ? "Sambungkan Gmail" : sync.account && !sync.needsReconnect ? `Live: ${sync.account}` : sync.needsReconnect ? "Gmail terputus, tap untuk sambungkan" : sync.status === "syncing" ? "Membaca Gmail" : "Gmail live, tap untuk sync";
   return (
     <header className="topbar">
       <LogoMark size={34} />

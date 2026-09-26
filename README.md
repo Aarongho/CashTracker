@@ -43,12 +43,13 @@ npm test          # parser / ledger / mood unit tests
 npm run build     # typecheck + production build in dist/
 ```
 
-## Deploy (Cloudflare Pages)
+## Live site (GitHub Pages)
 
-1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** → pick `Aarongho/cashtracker`.
-2. Framework preset: **None**. Build command: `npm run build`. Build output directory: `dist`.
-3. Save and deploy. Every push to `main` redeploys to `https://<project>.pages.dev`.
-4. Add that exact `https://<project>.pages.dev` origin to the OAuth client's **Authorized JavaScript origins** in Google Cloud.
+Every push to `main` is tested, built and deployed to **https://aarongho.github.io/cashtracker/** by `.github/workflows/deploy.yml`. In the repo settings, set **Pages → Source** to **GitHub Actions**.
+
+Legal pages (for the Google OAuth consent screen):
+- Privacy Policy: https://aarongho.github.io/cashtracker/privacy.html
+- Terms of Service: https://aarongho.github.io/cashtracker/terms.html
 
 ## Google setup (for real Gmail)
 

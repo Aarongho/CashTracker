@@ -1,0 +1,18 @@
+:root { --bg: #fff; --ink: #3c3c3c; --muted: #777; --line: #e5e5e5; --brand: #ff4f93; --soft: #f7f7f7; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #131f24; --ink: #f1f7fb; --muted: #93a6b0; --line: #37464f; --soft: #202f36; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 500 16px/1.65 "Nunito", ui-rounded, system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+header a { display: flex; align-items: center; gap: 10px; color: var(--brand); font-weight: 900; font-size: 1.3rem; text-decoration: none; }
+header img { width: 36px; height: 36px; }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 6px; }
+h2 { font-size: 1.2rem; margin: 32px 0 8px; }
+p, li { max-width: 65ch; }
+.meta { color: var(--muted); font-weight: 700; margin: 0 0 20px; }
+.box { background: var(--soft); border: 2px solid var(--line); border-radius: 16px; padding: 14px 18px; margin: 18px 0; }
+.lang { display: flex; gap: 8px; margin: 0 0 24px; }
+.lang a { border: 2px solid var(--line); border-radius: 12px; padding: 6px 12px; color: var(--ink); text-decoration: none; font-weight: 800; }
+hr { border: 0; border-top: 2px solid var(--line); margin: 48px 0; }
+a { color: #1899d6; }
+footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; }

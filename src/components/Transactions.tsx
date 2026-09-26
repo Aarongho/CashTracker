@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import type { AppState, Transaction } from "../types";
 import { CATEGORY_META, type Category } from "../types";
-import { monthKey } from "../lib/ledger";
 import { formatIDR } from "../lib/money";
-import { emailSource, monogram, sourceColor } from "../lib/brand";
+import { emailSource, sourceColor } from "../lib/brand";
+import { inPeriod, makePeriod, type Period } from "../lib/period";
+import { PeriodPicker } from "./Filters";
+import { BrandBadge } from "./Brand";
 import { TxRow } from "./TxRow";
 import { Icon } from "./icons";
 import { Segmented } from "./Segmented";
@@ -21,28 +23,18 @@ interface Group {
   txs: Transaction[];
 }
 
-const monthLabel = (k: string) => {
-  const [y, m] = k.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("id-ID", { month: "short", year: "numeric" });
-};
-
 export function Transactions({ state, onOpenTx, onAdd }: { state: AppState; onOpenTx: (t: Transaction) => void; onAdd: () => void }) {
   const [q, setQ] = useState("");
   const [groupBy, setGroupBy] = useState<GroupBy>("source");
   const [sortBy, setSortBy] = useState<SortBy>("biggest");
-  const [month, setMonth] = useState<string>(monthKey(new Date()));
+  const [period, setPeriod] = useState<Period>(() => makePeriod("month"));
   const [open, setOpen] = useState<Set<string>>(new Set());
-
-  const months = useMemo(
-    () => [...new Set([monthKey(new Date()), ...state.transactions.map((t) => monthKey(t.date))])].sort().reverse(),
-    [state.transactions],
-  );
 
   const { groups, spent, count } = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = state.transactions.filter(
       (t) =>
-        (month === "all" || monthKey(t.date) === month) &&
+        inPeriod(t, period) &&
         (!needle || `${t.merchant} ${t.source} ${t.mergedFrom?.join(" ") ?? ""} ${t.category}`.toLowerCase().includes(needle)),
     );
     const map = new Map<string, Group>();
@@ -51,7 +43,7 @@ export function Transactions({ state, onOpenTx, onAdd }: { state: AppState; onOp
       if (groupBy === "source") {
         key = label = emailSource(t);
         color = sourceColor(key);
-        badge = monogram(key);
+        badge = <BrandBadge name={key} size={46} />;
       } else if (groupBy === "category") {
         key = label = t.category;
         color = CATEGORY_META[t.category as Category].color;
@@ -74,7 +66,7 @@ export function Transactions({ state, onOpenTx, onAdd }: { state: AppState; onOp
     if (groupBy === "date") groups.sort((a, b) => b.key.localeCompare(a.key));
     else groups.sort((a, b) => (sortBy === "biggest" ? b.spent + b.income - (a.spent + a.income) : b.txs[0].date.localeCompare(a.txs[0].date)));
     return { groups, spent: groups.reduce((s, g) => s + g.spent, 0), count: list.length };
-  }, [state.transactions, q, groupBy, sortBy, month]);
+  }, [state.transactions, q, groupBy, sortBy, period]);
 
   const maxGroup = Math.max(...groups.map((g) => g.spent || g.income), 1);
   // Date view reads best fully open; the others start collapsed except the biggest group.
@@ -106,14 +98,12 @@ export function Transactions({ state, onOpenTx, onAdd }: { state: AppState; onOp
         options={[{ value: "source", label: "Sumber email" }, { value: "category", label: "Kategori" }, { value: "date", label: "Tanggal" }]}
       />
 
-      <div className="chips scroll">
+      <PeriodPicker value={period} onChange={(p) => { setPeriod(p); setOpen(new Set()); }} />
+
+      <div className="sortbar">
+        <small className="muted">Urutkan</small>
         <button className={`chip ${sortBy === "biggest" ? "on" : ""}`} onClick={() => setSortBy("biggest")}><Icon name="sort" size={14} /> Terbesar</button>
         <button className={`chip ${sortBy === "newest" ? "on" : ""}`} onClick={() => setSortBy("newest")}>Terbaru</button>
-        <span className="chip-sep" />
-        {months.map((m) => (
-          <button key={m} className={`chip ${month === m ? "on" : ""}`} onClick={() => setMonth(m)}>{monthLabel(m)}</button>
-        ))}
-        <button className={`chip ${month === "all" ? "on" : ""}`} onClick={() => setMonth("all")}>Semua</button>
       </div>
 
       {groups.length === 0 && <p className="muted center">Tidak ada transaksi di sini.</p>}
@@ -122,7 +112,7 @@ export function Transactions({ state, onOpenTx, onAdd }: { state: AppState; onOp
         return (
           <section key={g.key} className={`group ${expanded ? "open" : ""}`}>
             <button className="group-head" onClick={() => toggle(g.key, i)} aria-expanded={expanded}>
-              <span className="group-badge" style={{ "--c": g.color } as React.CSSProperties}>{g.badge}</span>
+              {groupBy === "source" ? g.badge : <span className="group-badge" style={{ "--c": g.color } as React.CSSProperties}>{g.badge}</span>}
               <span className="group-title">
                 <b>{g.label}</b>
                 <small className="muted">{g.txs.length} transaksi{g.income ? ` · +${formatIDR(g.income)}` : ""}</small>

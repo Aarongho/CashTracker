@@ -92,7 +92,7 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
       <section className="card">
         <h3>📬 Gmail</h3>
         <p className="muted">
-          {sync.mode === "gmail" ? "Tersambung (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun." : "Belum tersambung."}
+          {sync.mode === "gmail" ? <>Tersambung{sync.account ? <> sebagai <b className="ink">{sync.account}</b></> : ""} (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun.</> : "Belum tersambung."}
         </p>
         <label className="field">
           <span>Cek email tiap</span>
@@ -113,6 +113,9 @@ export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppSt
         <p className="muted">Semua data disimpan di browser ini saja.</p>
         <ConfirmButton className="btn danger" label="Reset semua data" confirmLabel="Yakin? Tap lagi untuk hapus semua" onConfirm={() => { sync.stop(); dispatch({ type: "reset" }); }} />
       </section>
+      <p className="legal">
+        <a href="privacy.html" target="_blank" rel="noreferrer">Kebijakan Privasi</a> · <a href="terms.html" target="_blank" rel="noreferrer">Ketentuan Layanan</a>
+      </p>
     </div>
   );
 }

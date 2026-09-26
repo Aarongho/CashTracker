@@ -3,12 +3,21 @@ import type { AppState, EmailMessage, Transaction } from "./types";
 import type { Action } from "./store";
 import { gmailQuery, parseEmail } from "./lib/parsers";
 import { mergeParsed } from "./lib/ledger";
-import { disconnect, fetchNewMessages, getClientId, hasValidToken, requestToken, setClientId } from "./lib/gmail";
+import { disconnect, fetchNewMessages, fetchProfileEmail, getClientId, hasValidToken, requestToken, setClientId } from "./lib/gmail";
 
 export type SyncMode = "gmail" | null;
 export type SyncStatus = "idle" | "syncing" | "error";
 
 const MODE_KEY = "cashtracker:mode";
+const ACCOUNT_KEY = "cashtracker:account";
+
+function readAccount(): string | null {
+  try {
+    return localStorage.getItem(ACCOUNT_KEY);
+  } catch {
+    return null;
+  }
+}
 const HISTORY_DAYS = 30;
 const DAY = 86_400_000;
 
@@ -27,6 +36,7 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
   const [error, setError] = useState<string | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [clientId, setClientIdState] = useState(getClientId);
+  const [account, setAccount] = useState<string | null>(readAccount);
   const stateRef = useRef(state);
   stateRef.current = state;
   const busy = useRef(false);
@@ -78,6 +88,17 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
       await requestToken(true);
       setMode("gmail");
       setNeedsReconnect(false);
+      setError(null);
+      fetchProfileEmail()
+        .then((email) => {
+          setAccount(email);
+          try {
+            localStorage.setItem(ACCOUNT_KEY, email);
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch(() => {});
       await syncGmail();
     } catch (e) {
       setError((e as Error).message);
@@ -95,6 +116,12 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
   const stop = useCallback(() => {
     if (mode === "gmail") disconnect();
     setMode(null);
+    setAccount(null);
+    try {
+      localStorage.removeItem(ACCOUNT_KEY);
+    } catch {
+      /* ignore */
+    }
     setStatus("idle");
     setError(null);
   }, [mode]);
@@ -122,6 +149,7 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     error,
     needsReconnect: mode === "gmail" && needsReconnect,
     hasClientId: !!clientId,
+    account,
     clientId,
     saveClientId,
     connectGmail,

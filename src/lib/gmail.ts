@@ -91,25 +91,51 @@ export function hasValidToken(): boolean {
   return !!token && Date.now() < token.expiresAt - 60_000;
 }
 
-/** Ask Google for a short-lived read-only Gmail token (popup the first time). */
-export async function requestToken(interactive: boolean): Promise<void> {
-  const clientId = getClientId();
-  if (!clientId) throw new Error("Masukkan Google Client ID dulu.");
-  await loadGis();
+/** Start loading Google sign-in early so the login popup can open straight from a tap. */
+export function preloadGis(): void {
+  void loadGis().catch(() => {});
+}
+
+const AUTH_ERRORS: Record<string, string> = {
+  access_denied: "Akses ditolak. Kalau app masih mode Testing, email kamu harus ada di daftar Test users di Google Cloud (atau app di-Publish).",
+  popup_closed: "Login Google ditutup sebelum selesai.",
+  popup_failed_to_open: "Popup diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.",
+  invalid_client: "Client ID tidak dikenali Google. Cek lagi Client ID-nya.",
+  origin_mismatch: "Alamat situs ini belum didaftarkan di Authorized JavaScript origins pada Google Cloud.",
+};
+const authError = (code: string) => new Error(AUTH_ERRORS[code] ?? `Login Google gagal (${code}).`);
+
+function tokenFlow(clientId: string, interactive: boolean): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPE,
       callback: (r) => {
-        if (r.error || !r.access_token) return reject(new Error(r.error ?? "Login dibatalkan"));
+        if (r.error || !r.access_token) return reject(authError(r.error ?? "cancelled"));
         token = { value: r.access_token, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 };
         resolve();
       },
-      error_callback: (e) =>
-        reject(new Error(e.type === "popup_closed" ? "Login Google ditutup." : e.type === "popup_failed_to_open" ? "Popup diblokir browser. Izinkan popup lalu coba lagi." : e.type)),
+      error_callback: (e) => reject(authError(e.type)),
     });
     client.requestAccessToken({ prompt: interactive ? "consent" : "" });
   });
+}
+
+/**
+ * Ask Google for a short-lived read-only Gmail token. When Google sign-in is already
+ * loaded this opens the popup synchronously, inside the user's tap, so Safari allows it.
+ */
+export function requestToken(interactive: boolean): Promise<void> {
+  const clientId = getClientId();
+  if (!clientId) return Promise.reject(new Error("Masukkan Google Client ID dulu."));
+  if (window.google?.accounts?.oauth2) return tokenFlow(clientId, interactive);
+  return loadGis().then(() => tokenFlow(clientId, interactive));
+}
+
+/** The Gmail address this token belongs to. */
+export async function fetchProfileEmail(): Promise<string> {
+  const r = await api<{ emailAddress: string }>("/profile");
+  return r.emailAddress;
 }
 
 export function disconnect(): void {

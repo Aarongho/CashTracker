@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CashTracker Privacy Policy</title>
+  <meta name="description" content="How CashTracker handles your data, including Gmail data accessed through Google APIs." />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="legal.css" />
+</head>
+<body>
+<main>
+  <header><a href="./"><img src="favicon.svg" alt="" />cashtracker</a></header>
+
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective 26 September 2026</p>
+  <nav class="lang"><a href="#en">English</a><a href="#id">Bahasa Indonesia</a></nav>
+
+  <section id="en">
+    <p>CashTracker ("the app", "we") is a personal spending tracker available at <a href="https://aarongho.github.io/cashtracker/">aarongho.github.io/cashtracker</a>. It reads transaction emails in your Gmail (for example from banks, e-wallets and online stores) to record your spending, and shows your balances and spending insights. This policy explains what data the app accesses and what happens to it.</p>
+
+    <div class="box"><strong>In short:</strong> CashTracker runs entirely in your browser. There is no CashTracker server. Your emails and financial data are processed on your device, stored only on your device, and never sent to us or to anyone else.</div>
+
+    <h2>1. Data the app accesses</h2>
+    <ul>
+      <li><strong>Gmail messages (read-only).</strong> With your permission, the app uses the Google OAuth scope <code>https://www.googleapis.com/auth/gmail.readonly</code>. It searches only for messages from known banks, e-wallets and merchants, or with receipt-like subjects (such as "receipt", "transaksi", "invoice", "pembayaran"). From those messages it reads the sender, subject, date and body to find the amount, merchant and date of a transaction.</li>
+      <li><strong>Your Gmail address.</strong> Read from your Gmail profile so the app can show which account is connected.</li>
+      <li><strong>Information you type in.</strong> Your nickname, the banks and e-wallets you add with their balances, your monthly entertainment budget, and any transactions you add or edit.</li>
+    </ul>
+    <p>The app cannot send, delete, label or change your email. It does not access your contacts, Google Drive or any other Google service.</p>
+
+    <h2>2. How the data is used</h2>
+    <p>Gmail data is used only to provide the app's user-facing features: detecting transactions, calculating balances per bank, categorizing spending, and showing insights and the mascot's reactions. It is not used for advertising, profiling, selling, training AI or machine-learning models, or any purpose unrelated to these features.</p>
+
+    <h2>3. Where the data is stored</h2>
+    <ul>
+      <li>Emails are fetched directly from Google to your browser and parsed there. Full email bodies are not kept; only the extracted transactions (date, amount, merchant, category, and the Gmail message ID used to avoid duplicates) are saved.</li>
+      <li>Saved data lives in your browser's local storage on your device. It is not uploaded anywhere and is not synced between devices.</li>
+      <li>The Google access token is kept in memory only and is discarded when you close the tab. It expires after about one hour.</li>
+    </ul>
+
+    <h2>4. Sharing</h2>
+    <p>We do not sell, share, or transfer your data to anyone. Because there is no CashTracker server, we (the developer) never receive your emails or financial data, and no person reads them. The app is hosted as static files on GitHub Pages; GitHub may log standard web request data (such as IP address) as described in <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub's privacy statement</a>. Communication with Google is covered by <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>.</p>
+
+    <h2>5. Google API Services User Data Policy</h2>
+    <p>CashTracker's use and transfer of information received from Google APIs to any other app will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+    <h2>6. Your choices and deleting your data</h2>
+    <ul>
+      <li><strong>Disconnect Gmail:</strong> in the app, open <em>Atur → Gmail → Putuskan</em>. You can also revoke access at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+      <li><strong>Delete all data:</strong> open <em>Atur → Reset semua data</em>, or clear this site's data in your browser settings. This permanently removes everything the app stored.</li>
+    </ul>
+
+    <h2>7. Security</h2>
+    <p>All connections to Google use HTTPS. Access is read-only and limited to the scope above. Because data stays on your device, anyone with access to your unlocked device and browser could see it, so protect your device with a screen lock.</p>
+
+    <h2>8. Children</h2>
+    <p>CashTracker is not directed at children under 13, and we do not knowingly collect their data.</p>
+
+    <h2>9. Changes</h2>
+    <p>If this policy changes, the updated version will be posted on this page with a new effective date.</p>
+
+    <h2>10. Contact</h2>
+    <p>Questions or requests: open an issue at <a href="https://github.com/Aarongho/cashtracker/issues">github.com/Aarongho/cashtracker/issues</a>.</p>
+  </section>
+
+  <hr />
+
+  <section id="id" lang="id">
+    <h1>Kebijakan Privasi</h1>
+    <p class="meta">Berlaku sejak 26 September 2026</p>
+    <p>CashTracker adalah aplikasi pencatat pengeluaran pribadi di <a href="https://aarongho.github.io/cashtracker/">aarongho.github.io/cashtracker</a>. Aplikasi membaca email transaksi di Gmail kamu (misalnya dari bank, e-wallet, dan toko online) untuk mencatat pengeluaran, lalu menampilkan saldo dan insight pengeluaranmu.</p>
+
+    <div class="box"><strong>Singkatnya:</strong> CashTracker berjalan sepenuhnya di browser kamu. Tidak ada server CashTracker. Email dan data keuanganmu diproses dan disimpan hanya di perangkatmu, dan tidak pernah dikirim ke kami atau ke siapa pun.</div>
+
+    <h2>1. Data yang diakses</h2>
+    <ul>
+      <li><strong>Email Gmail (hanya baca).</strong> Dengan izinmu, aplikasi memakai izin <code>gmail.readonly</code>. Aplikasi hanya mencari email dari bank, e-wallet, dan merchant yang dikenal, atau yang subjeknya seperti struk ("receipt", "transaksi", "invoice", "pembayaran"). Dari email itu dibaca pengirim, subjek, tanggal, dan isi untuk menemukan nominal, merchant, dan tanggal transaksi.</li>
+      <li><strong>Alamat Gmail kamu</strong>, untuk menampilkan akun mana yang tersambung.</li>
+      <li><strong>Data yang kamu isi sendiri:</strong> nama panggilan, bank/e-wallet beserta saldonya, budget hiburan, dan transaksi yang kamu tambah atau ubah.</li>
+    </ul>
+    <p>Aplikasi tidak bisa mengirim, menghapus, memberi label, atau mengubah email kamu, dan tidak mengakses kontak, Google Drive, atau layanan Google lain.</p>
+
+    <h2>2. Penggunaan data</h2>
+    <p>Data Gmail hanya dipakai untuk fitur aplikasi: mendeteksi transaksi, menghitung saldo per bank, mengelompokkan pengeluaran, serta menampilkan insight dan reaksi maskot. Data tidak dipakai untuk iklan, profiling, dijual, atau melatih model AI.</p>
+
+    <h2>3. Penyimpanan</h2>
+    <p>Email diambil langsung dari Google ke browser kamu dan diproses di sana. Isi email lengkap tidak disimpan; yang disimpan hanya transaksi hasil ekstraksi, di penyimpanan lokal browser pada perangkatmu. Token akses Google hanya ada di memori dan hilang saat tab ditutup.</p>
+
+    <h2>4. Berbagi data</h2>
+    <p>Kami tidak menjual atau membagikan datamu kepada siapa pun. Karena tidak ada server CashTracker, kami tidak pernah menerima email atau data keuanganmu, dan tidak ada orang yang membacanya.</p>
+
+    <h2>5. Kebijakan Data Pengguna Google API</h2>
+    <p>Penggunaan dan transfer informasi yang diterima CashTracker dari Google API ke aplikasi lain akan mematuhi <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, termasuk persyaratan Limited Use.</p>
+
+    <h2>6. Memutus akses dan menghapus data</h2>
+    <p>Putuskan Gmail lewat <em>Atur → Gmail → Putuskan</em> atau di <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Hapus semua data lewat <em>Atur → Reset semua data</em> atau dengan menghapus data situs ini di pengaturan browser.</p>
+
+    <h2>7. Kontak</h2>
+    <p>Pertanyaan atau permintaan: buat issue di <a href="https://github.com/Aarongho/cashtracker/issues">github.com/Aarongho/cashtracker/issues</a>.</p>
+  </section>
+
+  <footer><a href="./">CashTracker</a> · <a href="terms.html">Terms of Service</a></footer>
+</main>
+</body>
+</html>
