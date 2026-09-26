@@ -9,14 +9,16 @@ import { Insights } from "./components/Insights";
 import { Settings } from "./components/Settings";
 import { TxEditor } from "./components/TxEditor";
 import { Mascot } from "./components/Mascot";
+import { GmailSetup } from "./components/GmailSetup";
+import { Icon, type IconName } from "./components/icons";
 import { formatIDR } from "./lib/money";
 
 type Tab = "home" | "tx" | "insight" | "settings";
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "home", label: "Beranda", icon: "🏠" },
-  { id: "tx", label: "Transaksi", icon: "🧾" },
-  { id: "insight", label: "Insight", icon: "📊" },
-  { id: "settings", label: "Atur", icon: "⚙️" },
+const TABS: { id: Tab; label: string; icon: IconName }[] = [
+  { id: "home", label: "Home", icon: "home" },
+  { id: "tx", label: "Riwayat", icon: "list" },
+  { id: "insight", label: "Insight", icon: "chart" },
+  { id: "settings", label: "Atur", icon: "gear" },
 ];
 
 interface Toast {
@@ -27,7 +29,17 @@ interface Toast {
 
 export default function App() {
   const [state, dispatch] = useAppState();
-  const [tab, setTab] = useState<Tab>("home");
+  const [tab, setTabRaw] = useState<Tab>("home");
+  const [dir, setDir] = useState<"left" | "right">("right");
+  const [gmailOpen, setGmailOpen] = useState(false);
+  const tabIndex = TABS.findIndex((t) => t.id === tab);
+  const setTab = (t: Tab) => {
+    const to = TABS.findIndex((x) => x.id === t);
+    if (to === tabIndex) return;
+    setDir(to > tabIndex ? "right" : "left");
+    setTabRaw(t);
+    window.scrollTo({ top: 0 });
+  };
   const [editing, setEditing] = useState<Transaction | null | "new">(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [now, setNow] = useState(Date.now());
@@ -77,26 +89,24 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
-        <span className="brand">Cash<span>Tracker</span></span>
-        <span className="muted">Hai, {state.userName}!</span>
-      </header>
-
-      <main>
-        {tab === "home" && <Home state={state} sync={sync} onOpenTx={openTx} onSeeAll={() => setTab("tx")} now={now} />}
+      <main key={tab} className={`view enter-${dir}`}>
+        {tab === "home" && <Home state={state} sync={sync} onOpenTx={openTx} onSeeAll={() => setTab("tx")} onSetupGmail={() => setGmailOpen(true)} now={now} />}
         {tab === "tx" && <Transactions state={state} onOpenTx={openTx} onAdd={() => setEditing("new")} />}
         {tab === "insight" && <Insights state={state} />}
-        {tab === "settings" && <Settings state={state} dispatch={dispatch} sync={sync} />}
+        {tab === "settings" && <Settings state={state} dispatch={dispatch} sync={sync} onSetupGmail={() => setGmailOpen(true)} />}
       </main>
 
-      <nav className="tabbar">
+      <nav className="tabbar" style={{ "--i": tabIndex } as React.CSSProperties}>
+        <span className="tab-pill" aria-hidden="true" />
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>
-            <span>{t.icon}</span>
-            {t.label}
+          <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)} aria-current={tab === t.id ? "page" : undefined}>
+            <span className="tab-icon"><Icon name={t.icon} size={22} /></span>
+            <span className="tab-label">{t.label}</span>
           </button>
         ))}
       </nav>
+
+      {gmailOpen && <GmailSetup sync={sync} onClose={() => setGmailOpen(false)} />}
 
       {editing && (
         <TxEditor

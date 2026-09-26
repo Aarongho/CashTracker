@@ -3,7 +3,7 @@ import type { AppState, EmailMessage, Transaction } from "./types";
 import type { Action } from "./store";
 import { gmailQuery, parseEmail } from "./lib/parsers";
 import { mergeParsed } from "./lib/ledger";
-import { CLIENT_ID, disconnect, fetchNewMessages, hasValidToken, requestToken } from "./lib/gmail";
+import { disconnect, fetchNewMessages, getClientId, hasValidToken, requestToken, setClientId } from "./lib/gmail";
 import { demoInbox, randomLiveEmail } from "./lib/demo";
 
 export type SyncMode = "gmail" | "demo" | null;
@@ -26,6 +26,7 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
+  const [clientId, setClientIdState] = useState(getClientId);
   const stateRef = useRef(state);
   stateRef.current = state;
   const busy = useRef(false);
@@ -72,7 +73,7 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     }
   }, [ingest]);
 
-  const connectGmail = useCallback(async () => {
+  const connectGmail = useCallback(async (): Promise<boolean> => {
     try {
       await requestToken(true);
       setMode("gmail");
@@ -81,7 +82,9 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     } catch (e) {
       setError((e as Error).message);
       setStatus("error");
+      return false;
     }
+    return true;
   }, [syncGmail]);
 
   const startDemo = useCallback(() => {
@@ -90,6 +93,11 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
   }, [ingest]);
 
   const simulateEmail = useCallback(() => ingest([randomLiveEmail()]), [ingest]);
+
+  const saveClientId = useCallback((id: string) => {
+    setClientId(id);
+    setClientIdState(getClientId());
+  }, []);
 
   const stop = useCallback(() => {
     if (mode === "gmail") disconnect();
@@ -120,7 +128,9 @@ export function useSync(state: AppState, dispatch: React.Dispatch<Action>, onNew
     status,
     error,
     needsReconnect: mode === "gmail" && needsReconnect,
-    hasClientId: !!CLIENT_ID,
+    hasClientId: !!clientId,
+    clientId,
+    saveClientId,
     connectGmail,
     syncGmail,
     startDemo,

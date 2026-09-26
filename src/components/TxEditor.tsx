@@ -3,6 +3,8 @@ import type { Bank, Category, Direction, Transaction } from "../types";
 import { CATEGORIES, CATEGORY_META } from "../types";
 import { MoneyInput } from "./BankForm";
 import { uid } from "../lib/ledger";
+import { Sheet } from "./Sheet";
+import { Segmented } from "./Segmented";
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -41,22 +43,14 @@ export function TxEditor({
   const set = <K extends keyof Transaction>(k: K, v: Transaction[K]) => setDraft((d) => ({ ...d, [k]: v }));
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div className="row between">
-          <h2>{isNew ? "Tambah transaksi" : "Edit transaksi"}</h2>
-          <button className="icon-btn" aria-label="Tutup" onClick={onClose}>✕</button>
-        </div>
+    <Sheet title={isNew ? "Tambah transaksi" : "Edit transaksi"} onClose={onClose}>
+        <Segmented<Direction>
+          value={draft.direction}
+          onChange={(d) => set("direction", d)}
+          options={[{ value: "out", label: "Pengeluaran" }, { value: "in", label: "Pemasukan" }]}
+        />
 
-        <div className="seg">
-          {(["out", "in"] as Direction[]).map((d) => (
-            <button key={d} className={draft.direction === d ? "on" : ""} onClick={() => set("direction", d)}>
-              {d === "out" ? "Pengeluaran" : "Pemasukan"}
-            </button>
-          ))}
-        </div>
-
-        <input className="text-input" placeholder="Merchant / keterangan" value={draft.merchant} onChange={(e) => set("merchant", e.target.value)} />
+        <input id="tx-merchant" className="text-input" placeholder="Merchant / keterangan" value={draft.merchant} onChange={(e) => set("merchant", e.target.value)} />
         <MoneyInput value={draft.amount} onChange={(n) => set("amount", n)} />
 
         <label className="field">
@@ -91,7 +85,6 @@ export function TxEditor({
           {!isNew && onDelete && <button className="btn danger" onClick={() => onDelete(draft.id)}>Hapus</button>}
           <button className="btn wide" disabled={!draft.amount || !draft.merchant.trim()} onClick={() => onSave(draft, remember)}>Simpan</button>
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }

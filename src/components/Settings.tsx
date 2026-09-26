@@ -22,15 +22,19 @@ function ConfirmButton({ label, confirmLabel, onConfirm, className }: { label: s
   );
 }
 
-export function Settings({ state, dispatch, sync }: { state: AppState; dispatch: React.Dispatch<Action>; sync: ReturnType<typeof useSync> }) {
+export function Settings({ state, dispatch, sync, onSetupGmail }: { state: AppState; dispatch: React.Dispatch<Action>; sync: ReturnType<typeof useSync>; onSetupGmail: () => void }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ bank: Bank; balance: number } | null>(null);
   const merchantSources = SOURCES.filter((s) => s.kind === "merchant");
 
   return (
     <div className="page">
+      <header className="page-head">
+        <h1>Atur</h1>
+        <p className="muted">Bank, budget, dan Gmail</p>
+      </header>
       <section className="card">
-        <b>🏦 Bank & e-wallet</b>
+        <h3>🏦 Bank & e-wallet</h3>
         {state.banks.map((b) => (
           <div key={b.id} className="bank-row" style={{ "--bank": b.color } as React.CSSProperties}>
             <span className="dot" />
@@ -63,13 +67,13 @@ export function Settings({ state, dispatch, sync }: { state: AppState; dispatch:
       </section>
 
       <section className="card">
-        <b>🎮 Budget Hiburan / bulan</b>
+        <h3>🎮 Budget Hiburan / bulan</h3>
         <MoneyInput value={state.settings.hiburanBudget} onChange={(n) => dispatch({ type: "settings", patch: { hiburanBudget: n } })} />
         <small className="muted">Kobi mulai khawatir di 80%, marah di 100%, ngamuk di 150%.</small>
       </section>
 
       <section className="card">
-        <b>💳 Sumber dana per merchant</b>
+        <h3>💳 Sumber dana per merchant</h3>
         <small className="muted">Struk Apple, Netflix, Gojek, dll. dipotong dari bank mana? (Notif bank sendiri otomatis masuk ke bank itu, dan struk yang sama nominalnya digabung biar tidak dobel.)</small>
         {merchantSources.map((s) => (
           <label key={s.name} className="field">
@@ -86,7 +90,7 @@ export function Settings({ state, dispatch, sync }: { state: AppState; dispatch:
       </section>
 
       <section className="card">
-        <b>📬 Gmail</b>
+        <h3>📬 Gmail</h3>
         <p className="muted">
           {sync.mode === "gmail" ? "Tersambung (read-only). Email diproses di browser kamu, tidak dikirim ke server mana pun." : sync.mode === "demo" ? "Sedang mode demo." : "Belum tersambung."}
         </p>
@@ -96,14 +100,16 @@ export function Settings({ state, dispatch, sync }: { state: AppState; dispatch:
             {[30, 60, 120, 300].map((s) => <option key={s} value={s}>{s < 60 ? `${s} detik` : `${s / 60} menit`}</option>)}
           </select>
         </label>
+        {sync.clientId && <small className="muted mono">Client ID: {sync.clientId.slice(0, 14)}…</small>}
         <div className="row">
-          {sync.mode !== "gmail" && <button className="btn" disabled={!sync.hasClientId} onClick={sync.connectGmail}>Sambungkan Gmail</button>}
+          {sync.mode !== "gmail" && <button className="btn" onClick={onSetupGmail}>{sync.hasClientId ? "Sambungkan Gmail" : "Setup Gmail"}</button>}
+          {sync.mode === "gmail" && <button className="btn ghost" onClick={onSetupGmail}>Ganti Client ID</button>}
           {sync.mode !== null && <button className="btn ghost" onClick={sync.stop}>{sync.mode === "demo" ? "Keluar demo" : "Putuskan"}</button>}
         </div>
       </section>
 
       <section className="card">
-        <b>⚠️ Data</b>
+        <h3>⚠️ Data</h3>
         <p className="muted">Semua data disimpan di browser ini saja.</p>
         <ConfirmButton className="btn danger" label="Reset semua data" confirmLabel="Yakin? Tap lagi untuk hapus semua" onConfirm={() => { sync.stop(); dispatch({ type: "reset" }); }} />
       </section>

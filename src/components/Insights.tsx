@@ -3,6 +3,7 @@ import type { AppState, Category } from "../types";
 import { CATEGORY_META } from "../types";
 import { monthKey, monthStats } from "../lib/ledger";
 import { formatIDR, formatShort } from "../lib/money";
+import { emailSource, monogram, sourceColor } from "../lib/brand";
 
 export function Insights({ state }: { state: AppState }) {
   const months = useMemo(() => {
@@ -26,6 +27,17 @@ export function Insights({ state }: { state: AppState }) {
     return [...m].sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [state.transactions, month]);
 
+  const sources = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of state.transactions) {
+      if (t.direction !== "out" || t.category === "Transfer" || monthKey(t.date) !== month) continue;
+      const k = emailSource(t);
+      m.set(k, (m.get(k) ?? 0) + t.amount);
+    }
+    return [...m].sort((a, b) => b[1] - a[1]);
+  }, [state.transactions, month]);
+  const maxSrc = sources[0]?.[1] ?? 1;
+
   const label = (k: string) => {
     const [y, m] = k.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
@@ -40,9 +52,15 @@ export function Insights({ state }: { state: AppState }) {
 
   return (
     <div className="page">
-      <select className="text-input" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Pilih bulan">
-        {months.map((m) => <option key={m} value={m}>{label(m)}</option>)}
-      </select>
+      <header className="page-head">
+        <h1>Insight</h1>
+        <p className="muted">Ke mana uangmu pergi bulan ini</p>
+      </header>
+      <div className="chips scroll">
+        {months.map((m) => (
+          <button key={m} className={`chip ${month === m ? "on" : ""}`} onClick={() => setMonth(m)}>{label(m)}</button>
+        ))}
+      </div>
 
       <section className="stat-grid">
         <div className="card stat"><small>Pengeluaran</small><b>{formatIDR(stats.spent)}</b></div>
@@ -50,7 +68,7 @@ export function Insights({ state }: { state: AppState }) {
       </section>
 
       <section className="card">
-        <b>Per kategori</b>
+        <h3>Per kategori</h3>
         {cats.length === 0 && <p className="muted">Belum ada pengeluaran bulan ini.</p>}
         <div className="cat-bars">
           {cats.map(([c, v]) => (
@@ -66,8 +84,22 @@ export function Insights({ state }: { state: AppState }) {
       </section>
 
       <section className="card">
+        <h3>Per sumber email</h3>
+        {sources.length === 0 && <p className="muted">—</p>}
+        <div className="cat-bars">
+          {sources.map(([src, v]) => (
+            <div key={src} className="cat-bar">
+              <span className="cat-label"><span className="mini-badge" style={{ background: sourceColor(src) }}>{monogram(src)}</span>{src}</span>
+              <span className="cat-track"><span className="cat-fill" style={{ width: `${(v / maxSrc) * 100}%` }} /></span>
+              <span className="cat-val">{formatShort(v)}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="card">
         <div className="row between">
-          <b>Pengeluaran harian</b>
+          <h3>Pengeluaran harian</h3>
           <small className="muted">
             {hover !== null ? `${hover + 1} ${label(month).split(" ")[0]} · ${formatIDR(stats.byDay[hover])}` : `puncak ${formatShort(maxDay)}`}
           </small>
@@ -90,10 +122,10 @@ export function Insights({ state }: { state: AppState }) {
       </section>
 
       <section className="card">
-        <b>Top merchant</b>
+        <h3>Top merchant</h3>
         {merchants.map(([m, v], i) => (
           <div key={m} className="row between merchant-row">
-            <span className="ellipsis">{i + 1}. {m}</span>
+            <span className="ellipsis"><span className="rank">{i + 1}</span>{m}</span>
             <b>{formatIDR(v)}</b>
           </div>
         ))}

@@ -16,19 +16,23 @@ export function Onboarding({ onDone }: { onDone: (name: string, banks: Bank[], b
 
       {step === 0 && (
         <section className="step">
-          <Mascot mood="happy" size={180} />
+          <div className="stage stage-happy onboard-stage">
+            <div className="stars" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+            <Mascot mood="happy" size={190} interactive />
+            <div className="clouds" aria-hidden="true" />
+          </div>
           <Bubble>
             Halo! Aku <b>Kobi</b>, celengan galakmu 🐷<br />
             Aku bakal baca email transaksi kamu dan jagain uangmu. Tapi awas… aku bisa <b>marah</b> kalau kamu kebanyakan jajan hiburan!
           </Bubble>
-          <input className="text-input big" placeholder="Nama panggilanmu" value={name} onChange={(e) => setName(e.target.value)} />
+          <input id="nickname" className="text-input big" placeholder="Nama panggilanmu" value={name} onChange={(e) => setName(e.target.value)} />
           <button className="btn wide" disabled={!name.trim()} onClick={() => setStep(1)}>Lanjut</button>
         </section>
       )}
 
       {step === 1 && (
         <section className="step">
-          <Mascot mood="chill" size={120} />
+          <Mascot mood="chill" size={120} interactive />
           <Bubble>Oke {name}! Tambahin bank & e-wallet kamu, terus isi saldo <b>sekarang</b>. Mulai dari sini aku yang hitung.</Bubble>
           {banks.map((b) => (
             <div key={b.id} className="bank-row" style={{ "--bank": b.color } as React.CSSProperties}>
@@ -49,7 +53,7 @@ export function Onboarding({ onDone }: { onDone: (name: string, banks: Bank[], b
 
       {step === 2 && (
         <section className="step">
-          <Mascot mood="worried" size={120} />
+          <Mascot mood="worried" size={120} interactive />
           <Bubble>Terakhir! Berapa batas jajan <b>Hiburan</b> kamu sebulan? (Netflix, game, bioskop, top up…) Lewat dari ini, aku ngamuk 😤</Bubble>
           <MoneyInput value={budget} onChange={setBudget} />
           <div className="chips">

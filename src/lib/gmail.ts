@@ -3,7 +3,52 @@ import type { EmailMessage } from "../types";
 const SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
-export const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const CLIENT_KEY = "cashtracker:clientId";
+const ENV_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || "";
+
+/** Build-time client ID wins; otherwise the one the user pasted in the app. */
+export function getClientId(): string {
+  if (ENV_CLIENT_ID) return ENV_CLIENT_ID;
+  try {
+    return localStorage.getItem(CLIENT_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setClientId(id: string): void {
+  try {
+    if (id.trim()) localStorage.setItem(CLIENT_KEY, id.trim());
+    else localStorage.removeItem(CLIENT_KEY);
+  } catch {
+    /* storage blocked */
+  }
+}
+
+export const clientIdFromEnv = () => !!ENV_CLIENT_ID;
+
+export function looksLikeClientId(id: string): boolean {
+  return /^[\w-]+\.apps\.googleusercontent\.com$/.test(id.trim());
+}
+
+let gisPromise: Promise<void> | null = null;
+
+/** Load Google Identity Services on demand (only when the user connects). */
+function loadGis(): Promise<void> {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  gisPromise ??= new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => {
+      gisPromise = null;
+      reject(new Error("Gagal memuat Google Sign-In. Cek koneksi, atau buka app dari website-nya (bukan preview)."));
+    };
+    document.head.appendChild(s);
+  });
+  return gisPromise;
+}
 
 interface TokenResponse {
   access_token?: string;
@@ -37,19 +82,21 @@ export function hasValidToken(): boolean {
 }
 
 /** Ask Google for a short-lived read-only Gmail token (popup the first time). */
-export function requestToken(interactive: boolean): Promise<void> {
+export async function requestToken(interactive: boolean): Promise<void> {
+  const clientId = getClientId();
+  if (!clientId) throw new Error("Masukkan Google Client ID dulu.");
+  await loadGis();
   return new Promise((resolve, reject) => {
-    if (!CLIENT_ID) return reject(new Error("VITE_GOOGLE_CLIENT_ID belum di-set. Lihat README."));
-    if (!window.google) return reject(new Error("Google Identity Services belum ter-load. Coba refresh."));
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
+    const client = window.google!.accounts.oauth2.initTokenClient({
+      client_id: clientId,
       scope: SCOPE,
       callback: (r) => {
         if (r.error || !r.access_token) return reject(new Error(r.error ?? "Login dibatalkan"));
         token = { value: r.access_token, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 };
         resolve();
       },
-      error_callback: (e) => reject(new Error(e.type)),
+      error_callback: (e) =>
+        reject(new Error(e.type === "popup_closed" ? "Login Google ditutup." : e.type === "popup_failed_to_open" ? "Popup diblokir browser. Izinkan popup lalu coba lagi." : e.type)),
     });
     client.requestAccessToken({ prompt: interactive ? "consent" : "" });
   });

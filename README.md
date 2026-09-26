@@ -25,6 +25,8 @@ Track your spending **live from Gmail**: bank notifications (BCA, Mandiri, BNI, 
    | ≥ 150% | 🔥 furious (red, teeth, shaking hard) |
 
    Kobi also pops up a toast for every new transaction, and yells at you for Hiburan ones.
+   **Tap Kobi** to cycle through 10 animations: jump, spin, wave, dance, love, dizzy, coin, flip, sleepy, laugh.
+7. **Organized spending**: the Riwayat tab groups transactions by **email source** (BCA, Apple, Netflix, Gojek…), by category, or by date, sorted biggest-first or newest-first, per month.
 
 **Privacy:** there's no backend. Email is fetched and parsed in your browser, and data is stored in `localStorage` on that device. The Gmail token lives only in memory.
 
@@ -43,12 +45,16 @@ npm test          # parser / ledger / mood unit tests
 npm run build     # typecheck + production build in dist/
 ```
 
+## Live site
+
+Pushing to `main` deploys to GitHub Pages at **https://aarongho.github.io/cashtracker/** (enable it once: Settings → Pages → Source: GitHub Actions).
+
 ## Google setup (for real Gmail)
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the **Gmail API**.
 2. **OAuth consent screen**: set it to External, add the scope `.../auth/gmail.readonly`, and add your own Gmail address under **Test users**.
 3. **Credentials → Create OAuth client ID → Web application**. Add `http://localhost:5173` (and your deployed URL, if any) to **Authorized JavaScript origins**.
-4. Put the client ID in `.env` as `VITE_GOOGLE_CLIENT_ID=...` and restart `npm run dev`.
+4. In the app, tap **Sambungkan Gmail**, paste the client ID, and log in. It's saved in your browser. (Alternatively, bake it in at build time with `VITE_GOOGLE_CLIENT_ID` in `.env`, or as a repo secret for the GitHub Pages build.)
 
 > `gmail.readonly` is a *restricted* scope. In "Testing" mode it works for up to 100 test users you list. Publishing publicly requires Google's verification and security assessment.
 
